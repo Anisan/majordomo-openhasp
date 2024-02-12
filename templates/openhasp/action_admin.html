@@ -1,0 +1,88 @@
+[#if VIEW_MODE=""#]
+<!-- table zwave_devices search -->
+<div class="row">
+ <div class="col-md-3">
+  <a href="?view_mode=edit_hasp_panels" class="btn btn-default"><i class="glyphicon glyphicon-plus"></i> <#LANG_ADD#></a>
+  <a href="#" onClick="$('#api_settings').toggle();return false;" class="btn btn-default"><i class="glyphicon glyphicon-wrench"></i> <#LANG_SETUP#></a>
+  <a href="https://github.com/anisan/majordomo-openhasp" target="_blank" class="btn btn-default"><i class="glyphicon glyphicon-info-sign"></i></a>
+ </div>
+ <div class="col-md-3">
+  &nbsp;
+ </div>
+
+ <div class="col-md-6">
+  [#module name="xray" action="service" cycle="openhasp"#]
+ </div>
+</div>
+<div style="display:none" id='api_settings'>
+ &nbsp;
+ <form action="?" method="post" enctype="multipart/form-data" name="frmEdit" class="form">
+  <div class="form-group[#if ERR_MQTT_HOST#] has-error[#endif#]">
+   <label class="control-label">
+    MQTT host:
+   </label>
+   <input type="text" name="mqtt_host" value="[#MQTT_HOST#]" class="form-control">
+  </div>
+  <div class="form-group[#if ERR_MQTT_PORT#] has-error[#endif#]">
+   <label class="control-label">
+    MQTT port:
+   </label>
+   <input type="text" name="mqtt_port" value="[#MQTT_PORT#]" class="form-control">
+  </div>
+
+  <div class="form-group[#if ERR_MQTT_QUERY#] has-error[#endif#]">
+   <label class="control-label">
+    MQTT base topic:
+   </label>
+   <input type="text" name="mqtt_query" value="[#MQTT_QUERY#]" class="form-control">
+   <div class="help-block">Use "," for multiple topics</div>
+  </div>
+  <div class="form-group>
+        <label class="control-label">
+  Authorization required:
+  </label>
+  <input type="radio" value="1" name="mqtt_auth" [#if MQTT_AUTH="1"#] checked[#endif#]> <#LANG_YES#>
+  <input type="radio" value="0" name="mqtt_auth" [#if MQTT_AUTH!="1"#] checked[#endif#]> <#LANG_NO#>
+  <br/>&nbsp;
+</div>
+
+<div class="form-group">
+ <label class="control-label">
+  MQTT <#LANG_USERNAME#>:
+ </label>
+ <input type="text" name="mqtt_username" value="[#MQTT_USERNAME#]" class="form-control">
+</div>
+
+<div class="form-group">
+ <label class="control-label">
+  MQTT <#LANG_PASSWORD#>:
+ </label>
+ <input type="password" name="mqtt_password" value="[#MQTT_PASSWORD#]" class="form-control">
+</div>
+
+<div class="form-group">
+ <button type="submit" name="subm" value="Submit" class="btn btn-primary"><#LANG_UPDATE#></button>
+ <input type="hidden" name="view_mode" value="update_settings">
+ <input type="hidden" name="mode" value="update">
+</div>
+</form>
+<hr/>
+</div>
+&nbsp;
+[#endif VIEW_MODE#]
+ <!-- action usual -->
+ <!-- table hasp_panels search -->
+ [#if VIEW_MODE="search_hasp_panels" || VIEW_MODE=""#]
+  [#inc hasp_panels_search_admin.html#]
+ [#endif VIEW_MODE#]
+ <!-- / table hasp_panels search -->
+ <!-- table hasp_panels edit -->
+ [#if VIEW_MODE="edit_hasp_panels"#]
+   [#inc hasp_panels_edit.html#]
+ [#endif VIEW_MODE#]
+ <!-- / table hasp_panels edit -->
+ <!-- table hasp_panels view --> 
+ [#if VIEW_MODE="view_hasp_panels"#]
+   [#inc hasp_panels_view.html#]
+ [#endif VIEW_MODE#]
+ <!-- / table hasp_panels view -->
