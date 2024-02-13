@@ -17,7 +17,7 @@ $openhasp_module->getConfig();
 
 echo date("H:i:s") . " running " . basename(__FILE__) . PHP_EOL;
 
-$client_name = "MajorDoMo NSPanel";
+$client_name = "MajorDoMo OpenHasp";
 $client_name = $client_name . ' (#' . uniqid() . ')';
 
 if ($openhasp_module->config['MQTT_AUTH']) {
@@ -77,13 +77,7 @@ $oldMinute = '';
 
 while ($mqtt_client->proc()) {
 
-    $newMinute = date('H:i');
-    if ($newMinute != $oldMinute) {
-        $oldMinute = $newMinute;
-        callAPI('/api/module/nspanel', 'POST', array('new_minute' => 1));
-    }
-
-    $queue = checkOperationsQueue('nspanel_queue');
+    $queue = checkOperationsQueue('openhasp_queue');
     foreach ($queue as $mqtt_data) {
         $topic = $mqtt_data['DATANAME'];
         $value = $mqtt_data['DATAVALUE'];

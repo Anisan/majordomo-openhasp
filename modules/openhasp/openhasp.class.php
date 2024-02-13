@@ -192,18 +192,90 @@ function usual(&$out) {
   // some action for related tables
   SQLExec("DELETE FROM hasp_panels WHERE ID='".$rec['ID']."'");
  }
- function processSubscription($event, $details='') {
- $this->getConfig();
-  if ($event=='SAY') {
-   $level=$details['level'];
-   $message=$details['message'];
-   //...
-  }
- }
- function processCycle() {
- $this->getConfig();
-  //to-do
- }
+ 
+     
+    function sendMQTTCommand($topic, $command)
+    {
+        DebMes("Sending custom command to $topic: " . $command, 'openhasp');
+        $this->getConfig();
+        include_once(ROOT . "3rdparty/phpmqtt/phpMQTT.php");
+        $client_name = "NSPanel module";
+        if ($this->config['MQTT_AUTH']) {
+            $username = $this->config['MQTT_USERNAME'];
+            $password = $this->config['MQTT_PASSWORD'];
+        }
+        if ($this->config['MQTT_HOST']) {
+            $host = $this->config['MQTT_HOST'];
+        } else {
+            $host = 'localhost';
+        }
+        if ($this->config['MQTT_PORT']) {
+            $port = $this->config['MQTT_PORT'];
+        } else {
+            $port = 1883;
+        }
+        $mqtt_client = new Bluerhinos\phpMQTT($host, $port, $client_name);
+        if (!$mqtt_client->connect(true, NULL, $username, $password)) {
+            return 0;
+        }
+        $mqtt_client->publish($topic, $command, 0, 0);
+        $mqtt_client->close();
+
+    }
+
+    function sendCommand($root_path, $command)
+    {
+        $topic = $root_path . '/command';
+        $this->sendMQTTCommand($topic, $command);
+    }
+    
+    function sendValue($root_path, $key, $value)
+    {
+        $topic = $root_path . '/command/'.$key;
+        $this->sendMQTTCommand($topic, $value);
+    }
+ 
+    function api($params)
+    {
+        if ($_REQUEST['topic']) {
+            $this->processMessage($_REQUEST['topic'], $_REQUEST['msg']);
+        }
+    }
+ 
+     function processPanelMessage($panel, $topic, $msg)
+    {
+        
+        DebMes("Processing (" . $panel['TITLE'] . ")  $topic :\n$msg", 'openhasp');
+
+        //$config = $this->getPanelConfig($panel['PANEL_CONFIG']);
+        
+    }
+ 
+    function processMessage($topic, $msg)
+    {
+        $panels = SQLSelect("SELECT ID, MQTT_PATH FROM hasp_panels");
+        $total = count($panels);
+        for ($i = 0; $i < $total; $i++) {
+            if (is_integer(strpos($topic, $panels[$i]['MQTT_PATH']))) {
+                $this->processPanelMessage($panels[$i], $topic, $msg);
+                return;
+            }
+        }
+    }
+ 
+    function processSubscription($event, $details='') {
+        $this->getConfig();
+        if ($event=='SAY') {
+            $level=$details['level'];
+            $message=$details['message'];
+            //...
+        }
+    }
+ 
+    function processCycle() {
+        $this->getConfig();
+        //to-do
+    }
 /**
 * Install
 *
@@ -242,6 +314,7 @@ hasp_panels -
  hasp_panels: TITLE varchar(100) NOT NULL DEFAULT ''
  hasp_panels: MQTT_PATH varchar(100) NOT NULL DEFAULT '' 
  hasp_panels: CURRENT_PAGE varchar(100) NOT NULL DEFAULT ''
+ hasp_panels: PANEL_CONFIG text NOT NULL DEFAULT ''
 EOD;
   parent::dbInstall($data);
  }

@@ -77,8 +77,31 @@
  [#endif VIEW_MODE#]
  <!-- / table hasp_panels search -->
  <!-- table hasp_panels edit -->
+
  [#if VIEW_MODE="edit_hasp_panels"#]
-   [#inc hasp_panels_edit.html#]
+
+	<a href="?" class="btn btn-default"><#LANG_BACK#></a>
+	[#if ID!=""#]
+	<h2>[#TITLE#]</h2>
+	<ul class="nav nav-tabs">
+	 <li[#if TAB=""#] class="active"[#endif#]>
+	 <a href="?data_source=<#DATA_SOURCE#>&view_mode=<#VIEW_MODE#>&id=<#ID#>&tab="><#LANG_GENERAL#></a>
+	 </li>
+	 <li[#if TAB="config"#] class="active"[#endif#]>
+	 <a href="?data_source=<#DATA_SOURCE#>&view_mode=<#VIEW_MODE#>&id=<#ID#>&tab=config">&#060#LANG_DATA#&#062</a>
+	 </li>
+	</ul>
+	&nbsp;<br/>
+	[#endif ID#]
+
+	   [#if TAB=""#]
+	   [#inc hasp_panels_edit.html#]
+	   [#endif TAB#]
+
+	[#if TAB="config"#]
+	[#inc hasp_panels_edit_config.html#]
+	[#endif TAB#]
+
  [#endif VIEW_MODE#]
  <!-- / table hasp_panels edit -->
  <!-- table hasp_panels view --> 

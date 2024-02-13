@@ -9,12 +9,36 @@
   $rec=SQLSelectOne("SELECT * FROM $table_name WHERE ID='$id'");
   if ($this->mode=='update') {
    $ok=1;
-  //updating '<%LANG_TITLE%>' (varchar, required)
-   $rec['TITLE']=gr('title');
-   if ($rec['TITLE']=='') {
-    $out['ERR_TITLE']=1;
-    $ok=0;
-   }
+  
+
+    if ($this->tab == '') {
+        $rec['TITLE'] = gr('title');
+        if ($rec['TITLE'] == '') {
+            $out['ERR_TITLE'] = 1;
+            $ok = 0;
+        }
+        $rec['MQTT_PATH'] = gr('mqtt_path');
+        $rec['MQTT_PATH'] = preg_replace('/\/$/', '', $rec['MQTT_PATH']);
+        if ($rec['MQTT_PATH'] == '') {
+            $out['ERR_TITLE'] = 1;
+            $ok = 0;
+        }
+    }
+
+    if ($this->tab == 'config') {
+        $rec['PANEL_CONFIG'] = gr('panel_config');
+        if (!is_array(json_decode($rec['PANEL_CONFIG'], true))) {
+            $ok = 0;
+            $out['ERR_PANEL_CONFIG'] = 1;
+        }
+        /*
+        if (!$rec['PANEL_CONFIG']) {
+            $out['ERR_PANEL_CONFIG'] = 1;
+            $ok = 0;
+        }
+        */
+    }
+    
   //UPDATING RECORD
    if ($ok) {
     if ($rec['ID']) {

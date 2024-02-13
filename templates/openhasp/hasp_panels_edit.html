@@ -19,6 +19,12 @@
  </label>
  <div class="col-lg-9"><input id="title" name="title" value="[#TITLE#]" type="text" class="form-control"></div>
 </div>
+<div class="form-group[#if ERR_MQTT_PATH#] has-error[#endif#]">
+ <label for="mqtt_path" class="col-lg-3 control-label">
+ MQTT path:
+ </label>
+ <div class="col-lg-9"><input id="mqtt_path" name="mqtt_path" value="[#MQTT_PATH#]" type="text" class="form-control"></div>
+</div>
 <div class="form-group">
         <div class="col-lg-offset-3 col-lg-4">
  [#if ID!=""#]
@@ -30,6 +36,7 @@
 <input type="hidden" name="id" value="<#ID#>">
 <input type="hidden" name="view_mode" value="<#VIEW_MODE#>">
 <input type="hidden" name="edit_mode" value="<#EDIT_MODE#>">
+<input type="hidden" name="tab" value="<#TAB#>">
 <input type="hidden" name="mode" value="update">
         </div>
 </div>
