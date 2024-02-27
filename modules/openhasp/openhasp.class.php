@@ -263,6 +263,35 @@ class openhasp extends module {
         if ($_REQUEST['topic']) {
             $this->processMessage($_REQUEST['topic'], $_REQUEST['msg']);
         }
+        if ($params['request'][0]=='panels') {
+            $panels=SQLSelect("SELECT * FROM `hasp_panels`");
+            return $panels;
+        }
+        if ($params['request'][0]=='config') {
+            $id = $params['request'][1];
+            $table_name = "hasp_panels";
+            $rec = SQLSelectOne("SELECT * FROM `$table_name` WHERE ID='$id'");
+            if ($rec){
+                
+                if ($_SERVER['REQUEST_METHOD']=='POST'){
+                    $old_config = $this->getPanelConfig($rec['PANEL_CONFIG']);
+                    $config = file_get_contents('php://input');
+                    $rec['PANEL_CONFIG'] = $config;
+                    SQLUpdate($table_name, $rec);
+                    $this->unsetLinked($old_config);
+                    $this->setLinked($rec['PANEL_CONFIG']);
+                    return "ok";
+                }
+                else{
+                    return $rec['PANEL_CONFIG'];
+                }
+            }
+        }
+        if ($params['request'][0]=='reload') {
+            $id = $params['request'][1];
+            $this->reloadPages($id);
+            return "ok";
+        }
     }
     
     function reloadPages($id){
@@ -329,8 +358,8 @@ class openhasp extends module {
             $page = $config["pages"][$page_index];
             foreach ($page['objects'] as $object) {
                 if ($object["id"] == $object_id){
-                        if (isset($object[$event["event"]+"_linkedMethod"]))
-                            cm($object[$event["event"]+"_linkedMethod"],array('event' => $event));
+                        if (isset($object[$event["event"]."_linkedMethod"]))
+                            callMethod($object[$event["event"]."_linkedMethod"],array('event' => $event));
                         $default_event = "up";
                         if (isset($config["event_value"]))
                             $default_event = $config["value_event"];
