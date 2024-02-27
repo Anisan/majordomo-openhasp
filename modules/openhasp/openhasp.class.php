@@ -291,6 +291,37 @@ class openhasp extends module {
             //...
         }
     }
+    
+    
+    function propertySetHandle($object, $property, $value)
+    {
+        $op = "%".$object.".".$property."%";
+        $found = 0;
+        $panels = SQLSelect("SELECT * FROM hasp_panels");
+        $total = count($panels);
+        for ($i = 0; $i < $total; $i++) {
+            $config = json_decode($panels[$i]['PANEL_CONFIG'], true);
+            // перебираем все страницы
+            $pages = count($config["pages"]);
+            for ($pi = 0; $pi < $pages; $pi++) {
+                $page = $config["pages"][$pi];
+                // Перебираем обьекты на панели
+                foreach ($page as $object) {
+                    // перебираем все значения обьекта
+                    foreach ($object as $key => $val) {
+                        if ($val == $op){
+                            $name = "p".$pi."b".$object["id"].".".$key;
+                            $this->sendValue($panels[$i]['MQTT_PATH'], $name , $value);
+                            $found = 1;
+                        }
+                    }
+                }
+            }
+        }
+        if (!$found) {
+            removeLinkedProperty($object, $property, $this->name);
+        }
+    }
 
     function processCycle() {
         $this->getConfig();
