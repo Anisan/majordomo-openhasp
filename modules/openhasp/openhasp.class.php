@@ -139,7 +139,10 @@ class openhasp extends module {
             setGlobal('cycle_openhaspControl', 'restart');
             $this->redirect("?");
         }
-        
+        if ($this->view_mode == 'reloadpage_hasp_panels') {
+            $this->reloadPages($this->id);
+            $this->redirect("?");
+        }        
         if (isset($this->data_source) && !$_GET['data_source'] && !$_POST['data_source']) {
             $out['SET_DATASOURCE']=1;
         }
@@ -261,6 +264,33 @@ class openhasp extends module {
             $this->processMessage($_REQUEST['topic'], $_REQUEST['msg']);
         }
     }
+    
+    function reloadPages($id){
+        $panel=SQLSelectOne("SELECT * FROM hasp_panels WHERE ID='$id'");
+        // clear all pages
+        $this->sendCommand($panel['MQTT_PATH'],"clearpage all");
+        $config = json_decode($panel['PANEL_CONFIG'], true);
+        // перебираем все страницы
+        $pages = count($config["pages"]);
+        for ($pi = 0; $pi < $pages; $pi++) {
+            // send page
+            $page = $config["pages"][$pi];
+            $jsonl = 'jsonl {"page":'.$pi.',"comment":"'.$page["comment"].'"}';
+            $this->sendCommand($panel['MQTT_PATH'],$jsonl);
+            // Перебираем обьекты на панели
+            foreach ($page['objects'] as $object) {
+                // перебираем все значения обьекта
+                foreach ($object as $key => $val) {
+                    if (str_contains($val, '%')){
+                        $object[$key] = processTitle($val);
+                    }
+                }
+                // send object
+                $jsonl = "jsonl ".json_encode($object);
+                $this->sendCommand($panel['MQTT_PATH'],$jsonl);
+            }
+        }
+    }
 
     function processPanelMessage($panel, $topic, $msg)
     {
@@ -306,7 +336,7 @@ class openhasp extends module {
             for ($pi = 0; $pi < $pages; $pi++) {
                 $page = $config["pages"][$pi];
                 // Перебираем обьекты на панели
-                foreach ($page as $object) {
+                foreach ($page['objects'] as $object) {
                     // перебираем все значения обьекта
                     foreach ($object as $key => $val) {
                         if ($val == $op){
