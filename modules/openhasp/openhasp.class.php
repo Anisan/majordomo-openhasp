@@ -294,16 +294,71 @@ class openhasp extends module {
 
     function processPanelMessage($panel, $topic, $msg)
     {
+        $key = basename($topic);
         
-        DebMes("Processing (" . $panel['TITLE'] . ")  $topic :\n$msg", 'openhasp');
-
-        //$config = $this->getPanelConfig($panel['PANEL_CONFIG']);
+        DebMes("Processing (" . $panel['TITLE'] . ")  $topic $key:\n$msg", 'openhasp');
         
+        
+        if ($key == "page"){
+            $panel['CURRENT_PAGE'] = $msg;
+            SQLUpdate("hasp_panels", $panel);
+        }
+        else if ($key == "LWT"){
+            if ($panel['ONLINE'] != $msg)
+            {
+                $panel['ONLINE'] = $msg;
+                SQLUpdate("hasp_panels", $panel);
+                if ($msg=="online")
+                    $this->reloadPages($panel['ID']);
+            }
+        }
+        else if ($key == "statusupdate"){
+            $value= json_decode($msg,true);
+            $panel['IP'] = $value["ip"];
+            SQLUpdate("hasp_panels", $panel);
+        }
+        // todo add action for idle, ....
+        
+        
+        else if (preg_match('/^p(\d+)b(\d+)$/', $key, $matches)) {
+            $page_index = $matches[1];
+            $object_id = $matches[2];
+            $event = json_decode($msg,true);
+            $config = json_decode($panel['PANEL_CONFIG'], true);
+            if ( $page_index > count($config["pages"])-1) return;
+            $page = $config["pages"][$page_index];
+            foreach ($page['objects'] as $object) {
+                if ($object["id"] == $object_id){
+                        if (isset($object[$event["event"]+"_linkedMethod"]))
+                            cm($object[$event["event"]+"_linkedMethod"],array('event' => $event));
+                        $default_event = "up";
+                        if (isset($config["event_value"]))
+                            $default_event = $config["value_event"];
+                        if ($event["event"] == $default_event){
+                            if (isset($event["val"]) && isset($object["val"]))
+                                $this->setValue($object["val"],$event["val"]);
+                            if (isset($event["text"]) && isset($object["text"]))
+                                $this->setValue($object["text"],$event["text"]);
+                            if (isset($event["color"]) && isset($object["color"]))
+                                $this->setValue($object["color"],$event["color"]);
+                        }
+                }
+            }
+        }
+    }
+    
+    function setValue($op,$val){
+        $pattern = '/%([^%]+)\.([^%]+)%/';
+        if (preg_match($pattern, $op, $matches))
+        {
+            sg($matches[1].".".$matches[2], $val);
+        }
     }
 
     function processMessage($topic, $msg)
     {
-        $panels = SQLSelect("SELECT ID, MQTT_PATH FROM hasp_panels");
+        if (preg_match('/command/', $topic)) return;
+        $panels = SQLSelect("SELECT * FROM hasp_panels");
         $total = count($panels);
         for ($i = 0; $i < $total; $i++) {
             if (is_integer(strpos($topic, $panels[$i]['MQTT_PATH']))) {
@@ -339,7 +394,7 @@ class openhasp extends module {
                 foreach ($page['objects'] as $object) {
                     // перебираем все значения обьекта
                     foreach ($object as $key => $val) {
-                        if ($val == $op){
+                        if (is_string($val) && $val == $op){
                             $name = "p".$pi."b".$object["id"].".".$key;
                             $this->sendValue($panels[$i]['MQTT_PATH'], $name , $value);
                             $found = 1;
@@ -396,6 +451,9 @@ hasp_panels -
         hasp_panels: MQTT_PATH varchar(100) NOT NULL DEFAULT '' 
         hasp_panels: CURRENT_PAGE varchar(100) NOT NULL DEFAULT ''
         hasp_panels: PANEL_CONFIG text NOT NULL DEFAULT ''
+        hasp_panels: ONLINE varchar(100) NOT NULL DEFAULT ''
+        hasp_panels: IP varchar(100) NOT NULL DEFAULT ''
+        
         EOD;
         parent::dbInstall($data);
     }
