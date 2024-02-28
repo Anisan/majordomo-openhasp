@@ -304,7 +304,12 @@ class openhasp extends module {
         for ($pi = 0; $pi < $pages; $pi++) {
             // send page
             $page = $config["pages"][$pi];
-            $jsonl = 'jsonl {"page":'.$pi.',"comment":"'.$page["comment"].'"}';
+            $page_atr = array("page"=>$pi);
+            if (isset($page["comment"])) $page_atr["comment"] = $page["comment"];
+            if (isset($page["back"])) $page_atr["back"] = $page["back"];
+            if (isset($page["next"])) $page_atr["next"] = $page["next"];
+            if (isset($page["prev"])) $page_atr["prev"] = $page["prev"];
+            $jsonl = 'jsonl '.json_encode($page_atr);
             $this->sendCommand($panel['MQTT_PATH'],$jsonl);
             // Перебираем обьекты на панели
             foreach ($page['objects'] as $object) {
@@ -331,12 +336,14 @@ class openhasp extends module {
         if ($key == "page"){
             $panel['CURRENT_PAGE'] = $msg;
             SQLUpdate("hasp_panels", $panel);
+            $this->setLinkedProperty($panel,"page", $msg);
         }
         else if ($key == "LWT"){
             if ($panel['ONLINE'] != $msg)
             {
                 $panel['ONLINE'] = $msg;
                 SQLUpdate("hasp_panels", $panel);
+                $this->setLinkedProperty($panel,"LWT", $msg);
                 if ($msg=="online")
                     $this->reloadPages($panel['ID']);
             }
@@ -345,10 +352,17 @@ class openhasp extends module {
             $value= json_decode($msg,true);
             $panel['IP'] = $value["ip"];
             SQLUpdate("hasp_panels", $panel);
+            $this->setLinkedProperty($panel,"ip", $msg);
         }
-        // todo add action for idle, ....
-        
-        
+        else if ($key == "idle"){
+            $res = $this->setLinkedProperty($panel,"idle", $msg);
+            if(!$res){
+                if ($msg == "long")
+                    $this->sendValue($panel['MQTT_PATH'], "backlight" , 0);
+                if ($msg == "off")
+                    $this->sendValue($panel['MQTT_PATH'], "backlight" , 255);
+            }
+        }
         else if (preg_match('/^p(\d+)b(\d+)$/', $key, $matches)) {
             $page_index = $matches[1];
             $object_id = $matches[2];
@@ -380,8 +394,18 @@ class openhasp extends module {
         $pattern = '/%([^%]+)\.([^%]+)%/';
         if (preg_match($pattern, $op, $matches))
         {
-            sg($matches[1].".".$matches[2], $val);
+            if (gg($matches[1].".".$matches[2]) != $val)
+                sg($matches[1].".".$matches[2], $val, $this->name);
+            return true;
         }
+        return false;
+    }
+    
+    function setLinkedProperty($panel,$name,$value){
+        $config = json_decode($panel['PANEL_CONFIG'], true);
+        if (isset($config[$name."_linkedProperty"]))
+            return $this->setValue($config[$name."_linkedProperty"],$value);
+        return false;
     }
 
     function processMessage($topic, $msg)
@@ -415,6 +439,18 @@ class openhasp extends module {
         $total = count($panels);
         for ($i = 0; $i < $total; $i++) {
             $config = json_decode($panels[$i]['PANEL_CONFIG'], true);
+            // _linkedProperty
+            foreach ($config as $key => $val){
+                if ($val==$op){
+                    $pattern = '/([^_]+)_linkedProperty/';
+                    if (preg_match($pattern, $key, $matches))
+                    {
+                        $name = $matches[1];
+                        $this->sendValue($panels[$i]['MQTT_PATH'], $name , $value);
+                    }
+                }
+            }
+            
             // перебираем все страницы
             $pages = count($config["pages"]);
             for ($pi = 0; $pi < $pages; $pi++) {
