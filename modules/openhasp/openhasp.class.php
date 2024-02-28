@@ -459,9 +459,10 @@ class openhasp extends module {
                 foreach ($page['objects'] as $object) {
                     // перебираем все значения обьекта
                     foreach ($object as $key => $val) {
-                        if (is_string($val) && $val == $op){
+                        if (is_string($val) && str_contains($val, $op)){
                             $name = "p".$pi."b".$object["id"].".".$key;
-                            $this->sendValue($panels[$i]['MQTT_PATH'], $name , $value);
+                            $data = str_replace($op, $value, $val);
+                            $this->sendValue($panels[$i]['MQTT_PATH'], $name , $data);
                             $found = 1;
                         }
                     }
