@@ -29,10 +29,18 @@
   <b>
    [#TITLE#]
   </a></b>
+  [#if ONLINE=='online'#]
+  <span class="label label-success">Online</span>
+  [#else#]
+  <span class="label label-danger">Offline</span>
+  [#endif#]
+
  </td>
  <td width="1%" nowrap>
   <div>
    <a href="?view_mode=reloadpage_hasp_panels&id=[#ID#]" class="btn btn-default" title="Reload pages"><i class="glyphicon glyphicon-refresh"></i></a>
+   <button onclick="showScreenshot('[#IP#]');" data-toggle="modal" data-target="#screenshot" class="btn btn-default" title="Screenshot"><i class="glyphicon glyphicon-camera"></i></button>
+   <a href="http://[#IP#]"  target="_blank" class="btn btn-default" title="Device UI"><i class="glyphicon glyphicon-link"></i></a>
   [#if "<#ACTION#>"=="admin"#]
    <a href="?view_mode=edit_hasp_panels&id=[#ID#]" class="btn btn-default" title="Edit"><i class="glyphicon glyphicon-pencil"></i></a>
    <a href="?view_mode=delete_hasp_panels&id=[#ID#]" onClick="return confirm('Are you sure? Please confirm.')" class="btn btn-default" title="Delete"><i class="glyphicon glyphicon-remove"></i></a>
@@ -68,3 +76,28 @@
 [#endif RESULT#]
 <!-- / results -->
 </td></tr></table>
+<script type="text/javascript">
+	function showScreenshot(ip){
+		document.getElementById('image_screenshot').src="http://"+ip+"/screenshot?q="+Date.now();
+	}
+</script>
+
+<div class="modal fade" id="screenshot" tabindex="-1" role="dialog" aria-labelledby="screenshot" aria-hidden="true">
+<!-- <div id="about" class="modal hide"> -->
+	<div class="modal-dialog modal-lg" style="max-width:540px;">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button class="close" data-dismiss="modal"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>
+				<h4 class="modal-title">Screenshot</h4>
+			</div>
+			<div class="modal-body">
+				<img id="image_screenshot" src="">
+			</div>
+			
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+			</div>
+		</div>
+	</div>
+</div>
+
