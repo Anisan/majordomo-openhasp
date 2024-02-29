@@ -381,8 +381,11 @@ class openhasp extends module {
             foreach ($page['objects'] as $object) {
                 if ($object["id"] == $object_id){
                         if (isset($object[$event["event"]."_linkedMethod"]))
+                        {
                             callMethod($object[$event["event"]."_linkedMethod"],array('event' => $event));
-                        $default_event = "up";
+                            continue; // выполняется только метод
+                        }
+                        $default_event = "up"; // event по умолчанию, на который осуществляется установка значения в привязанное свойство
                         if (isset($config["event_value"]))
                             $default_event = $config["value_event"];
                         if ($event["event"] == $default_event){
