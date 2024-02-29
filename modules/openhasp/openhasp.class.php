@@ -356,7 +356,7 @@ class openhasp extends module {
             $value= json_decode($msg,true);
             $panel['IP'] = $value["ip"];
             SQLUpdate("hasp_panels", $panel);
-            $this->setLinkedProperty($panel,"ip", $msg);
+            $this->setLinkedProperty($panel,"ip", $value["ip"]);
         }
         else if ($key == "idle"){
             $res = $this->setLinkedProperty($panel,"idle", $msg);
@@ -370,6 +370,7 @@ class openhasp extends module {
         else if ($key == "backlight"){
             $backlight = json_decode($msg,true);
             $this->setLinkedProperty($panel,"brightness", $backlight['brightness']);
+            $this->setLinkedProperty($panel,"backlight", $backlight['state']);
         }
         else if (preg_match('/^p(\d+)b(\d+)$/', $key, $matches)) {
             $page_index = $matches[1];
@@ -458,10 +459,12 @@ class openhasp extends module {
                     if (preg_match($pattern, $key, $matches))
                     {
                         $name = $matches[1];
+                        if ($name == 'backlight')
+                            $this->sendValue($panels[$i]['MQTT_PATH'], "backlight" , "{\"state\":\"$value\"}");
                         if ($name == 'brightness')
-                            $this->sendValue($panels[$i]['MQTT_PATH'], "backlight" , $value);
-                        else
-                            $this->sendValue($panels[$i]['MQTT_PATH'], $name , $value);
+                            $this->sendValue($panels[$i]['MQTT_PATH'], "backlight" , "{\"brightness\":\"$value\"}");
+                        if ($name == 'page')
+                            $this->sendValue($panels[$i]['MQTT_PATH'], "page" , $value);
                     }
                 }
             }
