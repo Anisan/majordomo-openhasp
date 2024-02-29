@@ -127,7 +127,8 @@ class openhasp extends module {
         $out['MQTT_PASSWORD'] = $this->config['MQTT_PASSWORD'];
         $out['MQTT_AUTH'] = $this->config['MQTT_AUTH'];
         $out['DEBUG_MODE'] = $this->config['DEBUG_MODE'];
-
+        $out['DEBUG'] = $this->config['DEBUG'];
+        
         if ($this->view_mode == 'update_settings') {
             $this->config['MQTT_HOST'] = gr('mqtt_host', 'trim');
             $this->config['MQTT_USERNAME'] = gr('mqtt_username', 'trim');
@@ -135,6 +136,7 @@ class openhasp extends module {
             $this->config['MQTT_AUTH'] = gr('mqtt_auth', 'int');
             $this->config['MQTT_PORT'] = gr('mqtt_port', 'int');
             $this->config['MQTT_QUERY'] = gr('mqtt_query', 'trim');
+            $this->config['DEBUG'] = gr('debug', 'int');
             $this->saveConfig();
             setGlobal('cycle_openhaspControl', 'restart');
             $this->redirect("?");
@@ -219,8 +221,8 @@ class openhasp extends module {
     
     function sendMQTTCommand($topic, $command)
     {
-        DebMes("Sending custom command to $topic: " . $command, 'openhasp');
         $this->getConfig();
+        $this->log("Sending command to $topic: " . $command);
         include_once(ROOT . "3rdparty/phpmqtt/phpMQTT.php");
         $client_name = "NSPanel module";
         if ($this->config['MQTT_AUTH']) {
@@ -274,7 +276,7 @@ class openhasp extends module {
             if ($rec){
                 
                 if ($_SERVER['REQUEST_METHOD']=='POST'){
-                    $old_config = $this->getPanelConfig($rec['PANEL_CONFIG']);
+                    $old_config = $rec['PANEL_CONFIG'];
                     $config = file_get_contents('php://input');
                     $rec['PANEL_CONFIG'] = $config;
                     SQLUpdate($table_name, $rec);
@@ -286,6 +288,8 @@ class openhasp extends module {
                     return $rec['PANEL_CONFIG'];
                 }
             }
+            else
+                return "Not found";
         }
         if ($params['request'][0]=='reload') {
             $id = $params['request'][1];
@@ -330,7 +334,7 @@ class openhasp extends module {
     {
         $key = basename($topic);
         
-        DebMes("Processing (" . $panel['TITLE'] . ")  $topic $key:\n$msg", 'openhasp');
+        $this->log("Processing (" . $panel['TITLE'] . ")  $topic $key: $msg");
         
         
         if ($key == "page"){
@@ -362,6 +366,10 @@ class openhasp extends module {
                 if ($msg == "off")
                     $this->sendValue($panel['MQTT_PATH'], "backlight" , 255);
             }
+        }
+        else if ($key == "backlight"){
+            $backlight = json_decode($msg,true);
+            $this->setLinkedProperty($panel,"brightness", $backlight['brightness']);
         }
         else if (preg_match('/^p(\d+)b(\d+)$/', $key, $matches)) {
             $page_index = $matches[1];
@@ -410,6 +418,7 @@ class openhasp extends module {
 
     function processMessage($topic, $msg)
     {
+        $this->getConfig();
         if (preg_match('/command/', $topic)) return;
         $panels = SQLSelect("SELECT * FROM hasp_panels");
         $total = count($panels);
@@ -446,7 +455,10 @@ class openhasp extends module {
                     if (preg_match($pattern, $key, $matches))
                     {
                         $name = $matches[1];
-                        $this->sendValue($panels[$i]['MQTT_PATH'], $name , $value);
+                        if ($name == 'brightness')
+                            $this->sendValue($panels[$i]['MQTT_PATH'], "backlight" , $value);
+                        else
+                            $this->sendValue($panels[$i]['MQTT_PATH'], $name , $value);
                     }
                 }
             }
@@ -462,6 +474,8 @@ class openhasp extends module {
                         if (is_string($val) && str_contains($val, $op)){
                             $name = "p".$pi."b".$object["id"].".".$key;
                             $data = str_replace($op, $value, $val);
+                            if (str_contains($data, '%'))
+                                $data = processTitle($data);
                             $this->sendValue($panels[$i]['MQTT_PATH'], $name , $data);
                             $found = 1;
                         }
@@ -478,6 +492,15 @@ class openhasp extends module {
         $this->getConfig();
         //to-do
     }
+    
+    
+    function log($message) {
+        //echo $message . "\n";
+        // DEBUG MESSAGE LOG
+        if($this->config['DEBUG'] == 1)
+            DebMes($message, $this->name);
+    }
+    
     /**
 * Install
 *

@@ -4,7 +4,7 @@
  <div class="col-md-3">
   <a href="?view_mode=edit_hasp_panels" class="btn btn-default"><i class="glyphicon glyphicon-plus"></i> <#LANG_ADD#></a>
   <a href="#" onClick="$('#api_settings').toggle();return false;" class="btn btn-default"><i class="glyphicon glyphicon-wrench"></i> <#LANG_SETUP#></a>
-  <a href="https://github.com/anisan/majordomo-openhasp" target="_blank" class="btn btn-default"><i class="glyphicon glyphicon-info-sign"></i></a>
+  <a href="https://connect.smartliving.ru/tasks/894.html" target="_blank" class="btn btn-default"><i class="glyphicon glyphicon-info-sign"></i></a>
  </div>
  <div class="col-md-3">
   &nbsp;
@@ -59,7 +59,13 @@
  </label>
  <input type="password" name="mqtt_password" value="[#MQTT_PASSWORD#]" class="form-control">
 </div>
-
+<div class="form-group">
+ <label class="control-label">
+  Debug to DebMes:
+ </label>
+ <input type="radio" value="1" name="debug" [#if DEBUG="1"#] checked[#endif#]> <#LANG_YES#>
+  <input type="radio" value="0" name="debug" [#if DEBUG!="1"#] checked[#endif#]> <#LANG_NO#>
+</div>
 <div class="form-group">
  <button type="submit" name="subm" value="Submit" class="btn btn-primary"><#LANG_UPDATE#></button>
  <input type="hidden" name="view_mode" value="update_settings">
