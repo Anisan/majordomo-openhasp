@@ -259,6 +259,22 @@ class openhasp extends module {
         $topic = $root_path . '/command/'.$key;
         $this->sendMQTTCommand($topic, $value);
     }
+    
+    function sendBatch($root_path, $batch)
+    {
+        $keys = array_keys($batch);
+        if (count($keys) == 1){
+            $key = $keys[0];
+            $this->sendValue($root_path, $key, $batch[$key]);
+            return;
+        }
+        $data = array();
+        foreach ($keys as $key) {
+            $data[]=$key." ".$batch[$key];
+        }
+        $command = "json ".json_encode($data);
+        $this->sendCommand($root_path, $command);
+    }
 
     function api($params)
     {
@@ -451,20 +467,24 @@ class openhasp extends module {
         $panels = SQLSelect("SELECT * FROM hasp_panels");
         $total = count($panels);
         for ($i = 0; $i < $total; $i++) {
+            $batch = array();
             $config = json_decode($panels[$i]['PANEL_CONFIG'], true);
             // _linkedProperty
             foreach ($config as $key => $val){
                 if ($val==$op){
+                    $found = 1;
                     $pattern = '/([^_]+)_linkedProperty/';
                     if (preg_match($pattern, $key, $matches))
                     {
                         $name = $matches[1];
                         if ($name == 'backlight')
-                            $this->sendValue($panels[$i]['MQTT_PATH'], "backlight" , "{\"state\":\"$value\"}");
+                            $batch["backlight"] = "{\"state\":\"$value\"}";
                         if ($name == 'brightness')
-                            $this->sendValue($panels[$i]['MQTT_PATH'], "backlight" , "{\"brightness\":\"$value\"}");
+                            $batch["backlight"] = "{\"brightness\":\"$value\"}";
                         if ($name == 'page')
-                            $this->sendValue($panels[$i]['MQTT_PATH'], "page" , $value);
+                            $batch["page"] = $value;
+                        if ($name == 'idle')
+                            $batch["idle"] = $value;
                     }
                 }
             }
@@ -482,16 +502,19 @@ class openhasp extends module {
                             $data = str_replace($op, $value, $val);
                             if (str_contains($data, '%'))
                                 $data = processTitle($data);
-                            $this->sendValue($panels[$i]['MQTT_PATH'], $name , $data);
+                            $batch[$name] = $data;
                             $found = 1;
                         }
                     }
                 }
             }
+            if (!empty($batch))
+                $this->sendBatch($panels[$i]['MQTT_PATH'], $batch);
         }
         if (!$found) {
             removeLinkedProperty($object, $property, $this->name);
         }
+        
     }
 
     function processCycle() {

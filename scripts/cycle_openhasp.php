@@ -77,17 +77,6 @@ $oldMinute = '';
 
 while ($mqtt_client->proc()) {
 
-    $queue = checkOperationsQueue('openhasp_queue');
-    foreach ($queue as $mqtt_data) {
-        $topic = $mqtt_data['DATANAME'];
-        $value = $mqtt_data['DATAVALUE'];
-        $qos = 0;
-        $retain = 0;
-        if ($topic != '') {
-            $mqtt_client->publish($topic, $value, $qos, $retain);
-        }
-    }
-
     $currentMillis = round(microtime(true) * 10000);
 
     if ($currentMillis - $previousMillis > 10000) {
@@ -112,6 +101,7 @@ function procmsg($topic, $msg)
     global $openhasp_module;
 
     if (!isset($topic) || !isset($msg)) return false;
+    if (preg_match('/command/', $topic)) return;
     echo date("Y-m-d H:i:s") . " Received from {$topic} ($did, $from_hub): $msg\n";
     if (function_exists('callAPI')) {
         callAPI('/api/module/openhasp', 'POST', array('topic' => $topic, 'msg' => $msg));
