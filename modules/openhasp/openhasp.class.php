@@ -335,7 +335,7 @@ class openhasp extends module {
             foreach ($page['objects'] as $object) {
                 // перебираем все значения обьекта
                 foreach ($object as $key => $val) {
-                    if (str_contains($val, '%')){
+                    if ($this->str_contains($val, '%')){
                         $object[$key] = processTitle($val);
                     }
                 }
@@ -397,10 +397,18 @@ class openhasp extends module {
             $page = $config["pages"][$page_index];
             foreach ($page['objects'] as $object) {
                 if ($object["id"] == $object_id){
+                        $event["object"]=$key;
+                        $event["page"]=$page_index;
+                        $event["id"]=$object_id;
                         if (isset($object[$event["event"]."_linkedMethod"]))
                         {
-                            callMethod($object[$event["event"]."_linkedMethod"],array('event' => $event));
+                            callMethodSafe($object[$event["event"]."_linkedMethod"],array('event' => $event));
                             continue; // выполняется только метод
+                        }
+                        if (isset($object[$event["event"]."_linkedScript"]))
+                        {
+                            runScriptSafe($object[$event["event"]."_linkedScript"],array('event' => $event));
+                            continue; // выполняется только скрипт
                         }
                         $default_event = "up"; // event по умолчанию, на который осуществляется установка значения в привязанное свойство
                         if (isset($config["event_value"]))
@@ -497,10 +505,10 @@ class openhasp extends module {
                 foreach ($page['objects'] as $object) {
                     // перебираем все значения обьекта
                     foreach ($object as $key => $val) {
-                        if (is_string($val) && str_contains($val, $op)){
+                        if (is_string($val) && $this->str_contains($val, $op)){
                             $name = "p".$pi."b".$object["id"].".".$key;
                             $data = str_replace($op, $value, $val);
-                            if (str_contains($data, '%'))
+                            if ($this->str_contains($data, '%'))
                                 $data = processTitle($data);
                             $batch[$name] = $data;
                             $found = 1;
@@ -528,6 +536,10 @@ class openhasp extends module {
         // DEBUG MESSAGE LOG
         if($this->config['DEBUG'] == 1)
             DebMes($message, $this->name);
+    }
+    
+    function str_contains($haystack, $needle) {
+        return $needle !== '' && mb_strpos($haystack, $needle) !== false;
     }
     
     /**
