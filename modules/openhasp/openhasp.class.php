@@ -388,6 +388,12 @@ class openhasp extends module {
             $this->setLinkedProperty($panel,"brightness", $backlight['brightness']);
             $this->setLinkedProperty($panel,"backlight", $backlight['state']);
         }
+        else if ($this->str_contains($key, "output")){
+            $value= json_decode($msg,true);
+            $state = $value["state"];
+            if ($state == "on") $state=1; else $state=0;
+            $this->setLinkedProperty($panel, $key, $state);
+        }
         else if (preg_match('/^p(\d+)b(\d+)$/', $key, $matches)) {
             $page_index = $matches[1];
             $object_id = $matches[2];
@@ -493,6 +499,10 @@ class openhasp extends module {
                             $batch["page"] = $value;
                         if ($name == 'idle')
                             $batch["idle"] = $value;
+                        if ($this->str_contains($name, "output")){
+                            $state = "{\"state\":$value}";
+                            $batch[$name] = $state;
+                        }
                     }
                 }
             }
