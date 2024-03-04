@@ -436,8 +436,8 @@ class openhasp extends module {
         $pattern = '/%([^%]+)\.([^%]+)%/';
         if (preg_match($pattern, $op, $matches))
         {
-            if (gg($matches[1].".".$matches[2]) != $val)
-                sg($matches[1].".".$matches[2], $val, $this->name);
+            if (getGlobal($matches[1].".".$matches[2]) != $val)
+                setGlobal($matches[1].".".$matches[2], $val, array($this->name => '0'), $this->name);
             return true;
         }
         return false;
