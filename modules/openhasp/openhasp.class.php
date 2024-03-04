@@ -335,6 +335,7 @@ class openhasp extends module {
             foreach ($page['objects'] as $object) {
                 // перебираем все значения обьекта
                 foreach ($object as $key => $val) {
+                    if (!is_string($val)) continue;
                     if ($this->str_contains($val, '%')){
                         $object[$key] = processTitle($val);
                     }
