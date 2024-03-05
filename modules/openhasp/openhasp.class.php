@@ -365,12 +365,12 @@ class openhasp extends module {
                 $panel['ONLINE'] = $msg;
                 SQLUpdate("hasp_panels", $panel);
                 $this->setLinkedProperty($panel,"LWT", $msg);
-                if ($msg=="online")
-                    $this->reloadPages($panel['ID']);
             }
         }
         else if ($key == "statusupdate"){
             $value= json_decode($msg,true);
+            if ($value["uptime"] < 30)
+                $this->reloadPages($panel['ID']);
             $panel['IP'] = $value["ip"];
             SQLUpdate("hasp_panels", $panel);
             $this->setLinkedProperty($panel,"ip", $value["ip"]);
