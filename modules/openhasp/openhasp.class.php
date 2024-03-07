@@ -278,6 +278,8 @@ class openhasp extends module {
 
     function api($params)
     {
+        $table_name = "hasp_panels";
+            
         if ($_REQUEST['topic']) {
             $this->processMessage($_REQUEST['topic'], $_REQUEST['msg']);
         }
@@ -287,7 +289,6 @@ class openhasp extends module {
         }
         if ($params['request'][0]=='config') {
             $id = $params['request'][1];
-            $table_name = "hasp_panels";
             $rec = SQLSelectOne("SELECT * FROM `$table_name` WHERE ID='$id'");
             if ($rec){
                 
@@ -311,6 +312,31 @@ class openhasp extends module {
             $id = $params['request'][1];
             $this->reloadPages($id);
             return "ok";
+        }
+        if ($params['request'][0]=='page') {
+            $id = $params['request'][1];
+            $page = $params['request'][2];
+            $this->reloadPages($id);
+            $rec = SQLSelectOne("SELECT * FROM `$table_name` WHERE ID='$id'");
+            if ($rec){
+                $batch = array();
+                $batch["page"] = $page;
+                $this->sendBatch($rec['MQTT_PATH'], $batch);
+                return "ok";
+            }
+            return "Not found";
+        }
+        if ($params['request'][0]=='jsonl') {
+            $id = $params['request'][1];
+            $jsonl = file_get_contents('php://input');
+            $rec = SQLSelectOne("SELECT * FROM `$table_name` WHERE ID='$id'");
+            if ($rec){
+                $batch = array();
+                $batch["jsonl"] = $jsonl;
+                $this->sendBatch($rec['MQTT_PATH'], $batch);
+                return "ok";
+            }
+            return "Not found";
         }
     }
     
