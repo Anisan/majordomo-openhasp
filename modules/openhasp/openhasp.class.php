@@ -142,7 +142,8 @@ class openhasp extends module {
             $this->redirect("?");
         }
         if ($this->view_mode == 'reloadpage_hasp_panels') {
-            $this->reloadPages($this->id);
+            $panel=SQLSelectOne("SELECT * FROM hasp_panels WHERE ID='$this->id'");
+            $this->reloadPages($panel);
             $this->redirect("?");
         }        
         if (isset($this->data_source) && !$_GET['data_source'] && !$_POST['data_source']) {
@@ -310,13 +311,19 @@ class openhasp extends module {
         }
         if ($params['request'][0]=='reload') {
             $id = $params['request'][1];
-            $this->reloadPages($id);
-            return "ok";
+            $panel=SQLSelectOne("SELECT * FROM hasp_panels WHERE ID='$id'");
+            if ($panel){
+                if (count($params['request'])==3)
+                    $this->reloadPage($panel,$params['request'][2]);
+                else
+                    $this->reloadPages($panel);
+                return "ok";
+                }
+            return "Not found";
         }
         if ($params['request'][0]=='page') {
             $id = $params['request'][1];
             $page = $params['request'][2];
-            $this->reloadPages($id);
             $rec = SQLSelectOne("SELECT * FROM `$table_name` WHERE ID='$id'");
             if ($rec){
                 $batch = array();
@@ -339,18 +346,11 @@ class openhasp extends module {
             return "Not found";
         }
     }
-    
-    function reloadPages($id){
-        $panel=SQLSelectOne("SELECT * FROM hasp_panels WHERE ID='$id'");
-        // clear all pages
-        $this->sendCommand($panel['MQTT_PATH'],"clearpage all");
+    function reloadPage($panel,$index){
+        $this->sendCommand($panel['MQTT_PATH'],"clearpage ".$index);
         $config = json_decode($panel['PANEL_CONFIG'], true);
-        // перебираем все страницы
-        $pages = count($config["pages"]);
-        for ($pi = 0; $pi < $pages; $pi++) {
-            // send page
-            $page = $config["pages"][$pi];
-            $page_atr = array("page"=>$pi);
+        $page = $config["pages"][$index];
+        $page_atr = array("page"=>$index);
             if (isset($page["comment"])) $page_atr["comment"] = $page["comment"];
             if (isset($page["back"])) $page_atr["back"] = $page["back"];
             if (isset($page["next"])) $page_atr["next"] = $page["next"];
@@ -362,14 +362,28 @@ class openhasp extends module {
                 // перебираем все значения обьекта
                 foreach ($object as $key => $val) {
                     if (!is_string($val)) continue;
-                    if ($this->str_contains($val, '%')){
-                        $object[$key] = processTitle($val);
-                    }
+                    $object[$key] = $this->processValue($val, "", "");
                 }
                 // send object
                 $jsonl = "jsonl ".json_encode($object);
                 $this->sendCommand($panel['MQTT_PATH'],$jsonl);
             }
+    }
+    function reloadPages($panel){
+        $config = json_decode($panel['PANEL_CONFIG'], true);
+        // перебираем все страницы
+        $pages = count($config["pages"]);
+        for ($pi = 0; $pi < $pages; $pi++) {
+            $this->reloadPage($panel,$pi);
+        }
+    }
+    
+    function reloadPanels(){
+        $this->log("Reload panel's config");
+        $panels = SQLSelect("SELECT * FROM hasp_panels");
+        $total = count($panels);
+        for ($i = 0; $i < $total; $i++) {
+            $this->reloadPages($panels[$i]);
         }
     }
 
@@ -377,13 +391,17 @@ class openhasp extends module {
     {
         $key = basename($topic);
         
-        $this->log("Processing (" . $panel['TITLE'] . ")  $topic $key: $msg");
+        $this->log("Processing (" . $panel['TITLE'] . ")  $topic - $key: $msg");
         
         
         if ($key == "page"){
             $panel['CURRENT_PAGE'] = $msg;
             SQLUpdate("hasp_panels", $panel);
             $this->setLinkedProperty($panel,"page", $msg);
+            $config = json_decode($panel['PANEL_CONFIG'], true);
+            if (isset($config["page_linkedProperty"])){
+                $this->updateValues($panel["ID"],"page", $config["page_linkedProperty"],$msg);
+            }
         }
         else if ($key == "LWT"){
             if ($panel['ONLINE'] != $msg)
@@ -396,7 +414,7 @@ class openhasp extends module {
         else if ($key == "statusupdate"){
             $value= json_decode($msg,true);
             if ($value["uptime"] < 30)
-                $this->reloadPages($panel['ID']);
+                $this->reloadPages($panel);
             $panel['IP'] = $value["ip"];
             SQLUpdate("hasp_panels", $panel);
             $this->setLinkedProperty($panel,"ip", $value["ip"]);
@@ -430,30 +448,37 @@ class openhasp extends module {
             $page = $config["pages"][$page_index];
             foreach ($page['objects'] as $object) {
                 if ($object["id"] == $object_id){
-                        $event["object"]=$key;
-                        $event["page"]=$page_index;
-                        $event["id"]=$object_id;
-                        if (isset($object[$event["event"]."_linkedMethod"]))
+                    $event["object"]=$key;
+                    $event["page"]=$page_index;
+                    $event["id"]=$object_id;
+                    if (isset($object[$event["event"]."_linkedMethod"]))
+                    {
+                        callMethodSafe($object[$event["event"]."_linkedMethod"],array('event' => $event));
+                        continue; // выполняется только метод
+                    }
+                    if (isset($object[$event["event"]."_linkedScript"]))
+                    {
+                        runScriptSafe($object[$event["event"]."_linkedScript"],array('event' => $event));
+                        continue; // выполняется только скрипт
+                    }
+                    $default_event = "up"; // event по умолчанию, на который осуществляется установка значения в привязанное свойство
+                    if (isset($config["event_value"]))
+                        $default_event = $config["value_event"];
+                    if ($event["event"] == $default_event){
+                        if (isset($event["val"]) && isset($object["val"])){
+                            $this->setValue($object["val"],$event["val"]);
+                            $this->updateValues($panel["ID"],$key.".val",$object["val"],$event["val"]);
+                        }
+                        if (isset($event["text"]) && isset($object["text"])){
+                            $this->setValue($object["text"],$event["text"]);
+                            $this->updateValues($panel["ID"],$key.".text",$object["val"],$event["val"]);
+                        }
+                        if (isset($event["color"]) && isset($object["color"]))
                         {
-                            callMethodSafe($object[$event["event"]."_linkedMethod"],array('event' => $event));
-                            continue; // выполняется только метод
+                            $this->setValue($object["color"],$event["color"]);
+                            $this->updateValues($panel["ID"],$key.".color",$object["val"],$event["val"]);
                         }
-                        if (isset($object[$event["event"]."_linkedScript"]))
-                        {
-                            runScriptSafe($object[$event["event"]."_linkedScript"],array('event' => $event));
-                            continue; // выполняется только скрипт
-                        }
-                        $default_event = "up"; // event по умолчанию, на который осуществляется установка значения в привязанное свойство
-                        if (isset($config["event_value"]))
-                            $default_event = $config["value_event"];
-                        if ($event["event"] == $default_event){
-                            if (isset($event["val"]) && isset($object["val"]))
-                                $this->setValue($object["val"],$event["val"]);
-                            if (isset($event["text"]) && isset($object["text"]))
-                                $this->setValue($object["text"],$event["text"]);
-                            if (isset($event["color"]) && isset($object["color"]))
-                                $this->setValue($object["color"],$event["color"]);
-                        }
+                    }
                 }
             }
         }
@@ -480,6 +505,17 @@ class openhasp extends module {
     function processMessage($topic, $msg)
     {
         $this->getConfig();
+        if (preg_match('/discovery/', $topic)) {
+            $discovery= json_decode($msg,true);
+            $mqtt_path = substr($discovery["node_t"], 0, -1);
+            $rec = SQLSelectOne("SELECT * FROM hasp_panels WHERE MQTT_PATH='$mqtt_path'");
+            if (!$rec['ID']){
+                $rec['TITLE'] = $discovery["node"];
+                $rec['MQTT_PATH'] = $mqtt_path;
+                SQLInsert("hasp_panels", $rec);
+            }
+            return;
+        }
         if (preg_match('/command/', $topic)) return;
         $panels = SQLSelect("SELECT * FROM hasp_panels");
         $total = count($panels);
@@ -501,9 +537,19 @@ class openhasp extends module {
     }
     
     
+    
     function propertySetHandle($object, $property, $value)
     {
+        $this->log("PropertySetHandle: ". $object .".". $property ."=". $value);
         $op = "%".$object.".".$property."%";
+        $found = $this->updateValues(0,"",$op, $value);
+        if (!$found) {
+            removeLinkedProperty($object, $property, $this->name);
+        }
+    }
+    
+    function updateValues($panel_id, $name_value, $op, $value)
+    {
         $found = 0;
         $panels = SQLSelect("SELECT * FROM hasp_panels");
         $total = count($panels);
@@ -512,11 +558,13 @@ class openhasp extends module {
             $config = json_decode($panels[$i]['PANEL_CONFIG'], true);
             // _linkedProperty
             foreach ($config as $key => $val){
+                if ($panel_id != 0) break;
                 if ($val==$op){
                     $found = 1;
                     $pattern = '/([^_]+)_linkedProperty/';
                     if (preg_match($pattern, $key, $matches))
                     {
+                        $found = 1;
                         $name = $matches[1];
                         if ($name == 'backlight')
                             $batch["backlight"] = "{\"state\":\"$value\"}";
@@ -543,12 +591,11 @@ class openhasp extends module {
                     // перебираем все значения обьекта
                     foreach ($object as $key => $val) {
                         if (is_string($val) && $this->str_contains($val, $op)){
-                            $name = "p".$pi."b".$object["id"].".".$key;
-                            $data = str_replace($op, $value, $val);
-                            if ($this->str_contains($data, '%'))
-                                $data = processTitle($data);
-                            $batch[$name] = $data;
                             $found = 1;
+                            $name = "p".$pi."b".$object["id"].".".$key;
+                            if ($panels[$i] == $panel_id && $name == $name_value) continue;
+                            $data = $this->processValue($val, $op, $value);
+                            $batch[$name] = $data;
                         }
                     }
                 }
@@ -556,10 +603,32 @@ class openhasp extends module {
             if (!empty($batch))
                 $this->sendBatch($panels[$i]['MQTT_PATH'], $batch);
         }
-        if (!$found) {
-            removeLinkedProperty($object, $property, $this->name);
-        }
         
+        return $found;
+    }
+    
+    function processValue($template, $op, $value){
+        if ($op)
+            $data = str_replace($op, $value, $template);
+        else
+            $data = $template;
+        if ($this->str_contains($data, '%'))
+            $data = processTitle($data);
+        if (preg_match('/{{\s*([^}]+)\s*}}/', $data, $matches)){
+            $code = $matches[1];
+            try {
+                // Execute the code and get its result
+                $data = eval('return ' . $code . ';');
+                $this->log("Process template: ".$code." Result:".$data);
+            } catch (DivisionByZeroError $e) {
+                $this->log("Error: Division by zero is not allowed (".$template.")");
+            } catch (ParseError $e) {
+                $this->log("Error: Invalid PHP code (".$template.")");
+            } catch (Exception $e) {
+                $this->log("Error: ". $e->getMessage() ."(".$template.")");
+            }
+        }
+        return $data;
     }
 
     function processCycle() {

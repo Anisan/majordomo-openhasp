@@ -71,6 +71,9 @@ foreach ($topics as $k => $v) {
     $rec = array($k => $v);
     $mqtt_client->subscribe($rec, 0);
 }
+
+$openhasp_module->reloadPanels();
+
 $previousMillis = 0;
 
 $oldMinute = '';
