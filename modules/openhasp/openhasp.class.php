@@ -507,6 +507,7 @@ class openhasp extends module {
         $this->getConfig();
         if (preg_match('/discovery/', $topic)) {
             $discovery= json_decode($msg,true);
+            if (!isset($discovery["node_t"])) return;
             $mqtt_path = substr($discovery["node_t"], 0, -1);
             $rec = SQLSelectOne("SELECT * FROM hasp_panels WHERE MQTT_PATH='$mqtt_path'");
             if (!$rec['ID']){
