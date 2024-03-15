@@ -346,6 +346,17 @@ class openhasp extends module {
             return "Not found";
         }
     }
+    function cleanObject(&$object){
+        $events = array("up","down","release","long","hold","changed");
+        foreach ($events as $event)
+        {
+            unset($object[$event."_linkedMethod"]);
+            unset($object[$event."_linkedScript"]);
+            unset($object[$event."_linkedTemplate"]);
+            unset($object[$event."_command"]);
+        }
+        unset($object["linkedObject"]);
+    }
     function reloadPage($panel,$index){
         $this->sendCommand($panel['MQTT_PATH'],"clearpage ".$index);
         $config = json_decode($panel['PANEL_CONFIG'], true);
@@ -364,6 +375,8 @@ class openhasp extends module {
                     if (!is_string($val)) continue;
                     $object[$key] = $this->processValue($val, "", "");
                 }
+                // clean object
+                $this->cleanObject($object);
                 // send object
                 $jsonl = "jsonl ".json_encode($object);
                 $this->sendCommand($panel['MQTT_PATH'],$jsonl);
@@ -384,6 +397,54 @@ class openhasp extends module {
         $total = count($panels);
         for ($i = 0; $i < $total; $i++) {
             $this->reloadPages($panels[$i]);
+        }
+    }
+    
+    function openTemplate($panel, $name, $ob){
+        $config = json_decode($panel['PANEL_CONFIG'], true);
+        if (!isset($config['templates'])) return;
+        if (!isset($config['templates'][$name])) return;
+        $template = $config['templates'][$name];
+        foreach ($template as $object) {
+            if (!isset($object['tag']))
+            {
+                $tag = array();
+                $tag["object"] = $ob;
+                $tag["template"] = $name;
+                $object['tag'] = $tag;
+            }
+            $object['page'] = $panel['CURRENT_PAGE'];
+            // перебираем все значения обьекта
+            foreach ($object as $key => $val) {
+                if (!is_string($val)) continue;
+                if ($val == '%.description%'){
+                    $o = getObject($ob);
+                    $object[$key] =  $o->description;
+                }
+                else if ($val == '%.name%'){
+                    $object[$key] =  $tag;
+                }
+                else
+                {
+                    $op = str_replace('%.', '%'.$ob.'.', $val);
+                    $object[$key] = $this->processValue($op, "", "");
+                }
+            }
+            $this->cleanObject($object);
+            // send object
+            $jsonl = "jsonl ".json_encode($object);
+            $this->sendCommand($panel['MQTT_PATH'],$jsonl);
+        }
+    }
+    
+    function closeTemplate($panel, $name){
+        $config = json_decode($panel['PANEL_CONFIG'], true);
+        if (!isset($config['templates'])) return;
+        if (!isset($config['templates'][$name])) return;
+        $template = $config['templates'][$name];
+        foreach ($template as $object) {
+            $cmd = "p".$panel['CURRENT_PAGE']."b".$object['id'].".delete";
+            $this->sendCommand($panel['MQTT_PATH'],$cmd);
         }
     }
 
@@ -446,41 +507,78 @@ class openhasp extends module {
             $config = json_decode($panel['PANEL_CONFIG'], true);
             if ( $page_index > count($config["pages"])-1) return;
             $page = $config["pages"][$page_index];
-            foreach ($page['objects'] as $object) {
-                if ($object["id"] == $object_id){
-                    $event["object"]=$key;
-                    $event["page"]=$page_index;
-                    $event["id"]=$object_id;
-                    if (isset($object[$event["event"]."_linkedMethod"]))
-                    {
-                        callMethodSafe($object[$event["event"]."_linkedMethod"],array('event' => $event));
-                        continue; // выполняется только метод
-                    }
-                    if (isset($object[$event["event"]."_linkedScript"]))
-                    {
-                        runScriptSafe($object[$event["event"]."_linkedScript"],array('event' => $event));
-                        continue; // выполняется только скрипт
-                    }
-                    $default_event = "up"; // event по умолчанию, на который осуществляется установка значения в привязанное свойство
-                    if (isset($config["event_value"]))
-                        $default_event = $config["value_event"];
-                    if ($event["event"] == $default_event){
-                        if (isset($event["val"]) && isset($object["val"])){
-                            $this->setValue($object["val"],$event["val"]);
-                            $this->updateValues($panel["ID"],$key.".val",$object["val"],$event["val"]);
-                        }
-                        if (isset($event["text"]) && isset($object["text"])){
-                            $this->setValue($object["text"],$event["text"]);
-                            $this->updateValues($panel["ID"],$key.".text",$object["val"],$event["val"]);
-                        }
-                        if (isset($event["color"]) && isset($object["color"]))
-                        {
-                            $this->setValue($object["color"],$event["color"]);
-                            $this->updateValues($panel["ID"],$key.".color",$object["val"],$event["val"]);
-                        }
+            $object = null;
+            if (isset($event["tag"]))
+            {
+                foreach ($config['templates'][$event['tag']['template']] as $ob) {
+                    if ($ob['id'] == $object_id){
+                        $object = $ob;
+                         foreach ($object as $key => $val) {
+                             $object[$key] = str_replace('%.', '%'.$event["tag"]["object"].'.', $val);
+                             if (str_starts_with($val,'.'))
+                                $object[$key] = $event["tag"]["object"].$val;
+                         }
                     }
                 }
             }
+            else
+            {
+                foreach ($page['objects'] as $ob) {
+                    if ($ob["id"] == $object_id){
+                        $object = $ob;
+                    }
+                }
+            }   
+            
+            //$this->log(json_encode($object));
+                
+            if ($object){
+                    
+                $event["object"]=$key;
+                $event["page"]=$page_index;
+                $event["id"]=$object["id"];
+                // templates
+                if (isset($object[$event['event']."_linkedTemplate"]) && isset($object['linkedObject'])){
+                    $this->openTemplate($panel, $object[$event['event']."_linkedTemplate"], $object["linkedObject"]);
+                    return;
+                }
+                // commands
+                if (isset($object[$event['event']."_command"])){
+                    $cmd = $object[$event['event']."_command"];
+                    if ($cmd == 'delete')
+                        $this->sendCommand($panel["MQTT_PATH"],"p`$page_index`b`$object_id`.delete");
+                    if ($cmd == 'close')
+                        $this->closeTemplate($panel,$event['tag']['template']);
+                }
+                if (isset($object[$event["event"]."_linkedMethod"])){
+                    callMethodSafe($object[$event["event"]."_linkedMethod"],array('event' => $event));
+                    return; // выполняется только метод
+                }
+                if (isset($object[$event["event"]."_linkedScript"]))
+                {
+                    runScriptSafe($object[$event["event"]."_linkedScript"],array('event' => $event));
+                    return; // выполняется только скрипт
+                }
+                $default_event = "up"; // event по умолчанию, на который осуществляется установка значения в привязанное свойство
+                if (isset($config["event_value"]))
+                    $default_event = $config["value_event"];
+                if ($event["event"] == $default_event){
+                    if (isset($event["val"]) && isset($object["val"])){
+                        $this->setValue($object["val"],$event["val"]);
+                        $this->updateValues($panel["ID"],$key.".val",$object["val"],$event["val"]);
+                    }
+                    if (isset($event["text"]) && isset($object["text"])){
+                        $this->setValue($object["text"],$event["text"]);
+                        $this->updateValues($panel["ID"],$key.".text",$object["val"],$event["val"]);
+                    }
+                    if (isset($event["color"]) && isset($object["color"]))
+                    {
+                        $this->setValue($object["color"],$event["color"]);
+                        $this->updateValues($panel["ID"],$key.".color",$object["val"],$event["val"]);
+                    }
+                 }
+             }
+            
         }
     }
     
