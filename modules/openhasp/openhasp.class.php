@@ -515,7 +515,7 @@ class openhasp extends module {
                         $object = $ob;
                          foreach ($object as $key => $val) {
                              $object[$key] = str_replace('%.', '%'.$event["tag"]["object"].'.', $val);
-                             if (str_starts_with($val,'.'))
+                             if ($val[0] == '.')
                                 $object[$key] = $event["tag"]["object"].$val;
                          }
                     }
@@ -562,6 +562,8 @@ class openhasp extends module {
                 $default_event = "up"; // event по умолчанию, на который осуществляется установка значения в привязанное свойство
                 if (isset($config["event_value"]))
                     $default_event = $config["value_event"];
+                if ($object["obj"] == 'dropdown' || $object["obj"] == 'roller')
+                    $default_event = "changed";
                 if ($event["event"] == $default_event){
                     if (isset($event["val"]) && isset($object["val"])){
                         $this->setValue($object["val"],$event["val"]);
