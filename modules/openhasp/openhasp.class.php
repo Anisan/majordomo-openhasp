@@ -482,11 +482,22 @@ class openhasp extends module {
         }
         else if ($key == "idle"){
             $res = $this->setLinkedProperty($panel,"idle", $msg);
-            if(!$res){
+            if(!$res){ // default action by idle
                 if ($msg == "long")
+                {
+                    // turnoff display
                     $this->sendValue($panel['MQTT_PATH'], "backlight" , 0);
-                if ($msg == "off")
+                    // save display obj
+                    $object = array("page"=>0,"id"=>99,"obj"=>"obj","x"=>0,"y"=>0,"w"=>480,"h"=>480,"radius"=>0,"hidden"=>0,"bg_grad_dir"=>0,"bg_color"=>"black","border_width"=>0);
+                    $jsonl = "jsonl ".json_encode($object);
+                    $this->sendCommand($panel['MQTT_PATH'],$jsonl);
+                }
+                if ($msg == "off"){
+                    // delete save dispaly obj
+                    $this->sendCommand($panel['MQTT_PATH'],"p0b99.delete");
+                    // turn display
                     $this->sendValue($panel['MQTT_PATH'], "backlight" , 255);
+                }
             }
         }
         else if ($key == "backlight"){
