@@ -200,22 +200,41 @@ class openhasp extends module {
     }
 
     function unsetLinked($config){
-        $pattern = '/%([^%]+)\.([^%]+)%/';
-        preg_match_all($pattern, $config, $matches);
-
-        $values = array();
-        for ($i = 0; $i < count($matches[0]); $i++) {
-            removeLinkedProperty($matches[1][$i], $matches[2][$i], $this->name);
-        }
+        $this->findLinked($config,false);
     }
 
     function setLinked($config){
-        $pattern = '/%([^%]+)\.([^%]+)%/';
+        $this->findLinked($config,true);
+    }
+    
+    function findLinked($config, $add){
+        $pattern = '/%([^%\'"]+)\.([^%\'"]+)%/';
         preg_match_all($pattern, $config, $matches);
 
-        $values = array();
         for ($i = 0; $i < count($matches[0]); $i++) {
-            addLinkedProperty($matches[1][$i], $matches[2][$i], $this->name);
+            if ($add)
+                addLinkedProperty($matches[1][$i], $matches[2][$i], $this->name);
+            else
+                removeLinkedProperty($matches[1][$i], $matches[2][$i], $this->name);
+        }
+        // link for templates
+        $config = json_decode($config,true);
+        foreach ($config['pages'] as $page){
+            foreach ($page['objects'] as $object){
+                if ($object["obj"] == 'template' && isset($object["linkedObject"]))
+                {
+                    $template = $config['templates'][$object['template']];
+                    $template = json_encode($template);
+                    $pattern = '/%\.([^%\'"]+)%/';
+                    preg_match_all($pattern, $template, $matches);
+                    for ($i = 0; $i < count($matches[0]); $i++) {
+                        if ($add)
+                            addLinkedProperty($object["linkedObject"], $matches[1][$i], $this->name);
+                        else
+                            removeLinkedProperty($object["linkedObject"], $matches[1][$i], $this->name);
+                    }
+                }
+            }
         }
     }
 
@@ -370,16 +389,24 @@ class openhasp extends module {
             $this->sendCommand($panel['MQTT_PATH'],$jsonl);
             // Перебираем обьекты на панели
             foreach ($page['objects'] as $object) {
-                // перебираем все значения обьекта
-                foreach ($object as $key => $val) {
-                    if (!is_string($val)) continue;
-                    $object[$key] = $this->processValue($val, "", "");
+                $this->log(json_encode($object));
+                if ($object["obj"] != "template"){
+                    // перебираем все значения обьекта
+                    foreach ($object as $key => $val) {
+                        if (!is_string($val)) continue;
+                        $object[$key] = $this->processValue($val, "", "");
+                    }
+                    // clean object
+                    $this->cleanObject($object);
+                    // send object
+                    $jsonl = "jsonl ".json_encode($object);
+                    $this->sendCommand($panel['MQTT_PATH'],$jsonl);
                 }
-                // clean object
-                $this->cleanObject($object);
-                // send object
-                $jsonl = "jsonl ".json_encode($object);
-                $this->sendCommand($panel['MQTT_PATH'],$jsonl);
+                else if (isset($object["template"]))
+                {
+                    $this->addTemplate($panel,$object);
+                }
+                
             }
     }
     function reloadPages($panel){
@@ -400,6 +427,58 @@ class openhasp extends module {
         }
     }
     
+    function addTemplate($panel,$parent){
+        $this->log(json_encode($parent));
+        $name = $parent["template"];
+        $config = json_decode($panel['PANEL_CONFIG'], true);
+        if (!isset($config['templates'])) return;
+        if (!isset($config['templates'][$name])) return;
+        $template = $config['templates'][$name];
+        $this->mergeObjects($template[0],$parent);
+        foreach ($template as $index=>$object) {
+            if (!isset($object['tag']))
+            {
+                $tag = array();
+                $tag["object"] = $parent["linkedObject"];
+                $tag["template"] = $name;
+                $tag["id"] = $object["id"];
+                $object['tag'] = $tag;
+            }
+            $object["id"] = $parent["id"] + $object["id"];
+            if ($index > 0 && isset($object["parentid"]))
+                $object["parentid"] = $object["parentid"]+$parent["id"];
+            // перебираем все значения обьекта
+            foreach ($object as $key => $val) {
+                if (!is_string($val)) continue;
+                if ($val == '%.description%'){
+                    $o = getObject($parent["linkedObject"]);
+                    $object[$key] =  $o->description;
+                }
+                else if ($val == '%.name%'){
+                    $object[$key] =  $parent["linkedObject"];
+                }
+                else
+                {
+                    $op = str_replace('%.', '%'.$parent["linkedObject"].'.', $val);
+                    $object[$key] = $this->processValue($op, "", "");
+                }
+            }
+            $this->cleanObject($object);
+            // send object
+            $jsonl = "jsonl ".json_encode($object);
+            $this->sendCommand($panel['MQTT_PATH'],$jsonl);
+        }
+    }
+    
+    function mergeObjects(&$child, $parent){
+        $ignore = array("id","obj","template","linkedObject");
+            
+        foreach ($parent as $key => $val) {
+            if (!in_array($key, $ignore))
+                $child[$key] = $parent[$key];
+        }
+    }
+    
     function openTemplate($panel, $name, $ob){
         $config = json_decode($panel['PANEL_CONFIG'], true);
         if (!isset($config['templates'])) return;
@@ -411,6 +490,7 @@ class openhasp extends module {
                 $tag = array();
                 $tag["object"] = $ob;
                 $tag["template"] = $name;
+                $tag["id"]=$object['id'];
                 $object['tag'] = $tag;
             }
             $object['page'] = $panel['CURRENT_PAGE'];
@@ -522,13 +602,15 @@ class openhasp extends module {
             if (isset($event["tag"]))
             {
                 foreach ($config['templates'][$event['tag']['template']] as $ob) {
-                    if ($ob['id'] == $object_id){
+                    if ($ob['id'] == $event['tag']['id']){
                         $object = $ob;
-                         foreach ($object as $key => $val) {
-                             $object[$key] = str_replace('%.', '%'.$event["tag"]["object"].'.', $val);
-                             if ($val[0] == '.')
-                                $object[$key] = $event["tag"]["object"].$val;
-                         }
+                        foreach ($object as $key => $val) {
+                            $object[$key] = str_replace('%.', '%'.$event["tag"]["object"].'.', $val);
+                            if ($val[0] == '.')
+                               $object[$key] = $event["tag"]["object"].$val;
+                        }
+                        if (isset($event['tag']['object']))
+                            $object["linkedObject"] = $event['tag']['object'];
                     }
                 }
             }
@@ -541,7 +623,7 @@ class openhasp extends module {
                 }
             }   
             
-            //$this->log(json_encode($object));
+            $this->log(json_encode($object));
                 
             if ($object){
                     
@@ -651,7 +733,8 @@ class openhasp extends module {
     
     
     function propertySetHandle($object, $property, $value)
-    {
+    {   
+        //$this->getConfig();
         $this->log("PropertySetHandle: ". $object .".". $property ."=". $value);
         $op = "%".$object.".".$property."%";
         $found = $this->updateValues(0,"",$op, $value);
@@ -700,15 +783,40 @@ class openhasp extends module {
                 $page = $config["pages"][$pi];
                 // Перебираем обьекты на панели
                 foreach ($page['objects'] as $object) {
-                    // перебираем все значения обьекта
-                    foreach ($object as $key => $val) {
-                        if (is_string($val) && $this->str_contains($val, $op)){
-                            $found = 1;
-                            $name = "p".$pi."b".$object["id"].".".$key;
-                            if ($panels[$i] == $panel_id && $name == $name_value) continue;
-                            $data = $this->processValue($val, $op, $value);
-                            $batch[$name] = $data;
+                    
+                    //for template
+                    if ($object["obj"] == "template" && isset($object["template"]))
+                    {
+                        $template = $config["templates"][$object["template"]];
+                        $this->mergeObjects($template[0],$object);
+                        foreach ($template as $index => $child)
+                        {
+                            //$this->log(json_encode($child));
+                            $id = $child["id"] + $object["id"];
+                            foreach ($child as $key => $val) {
+                                $str = str_replace('%.', '%'.$object["linkedObject"].'.', $val);
+                                if (is_string($str) && $this->str_contains($str, $op)){
+                                    $found = 1;
+                                    $name = "p".$pi."b".$id.".".$key;
+                                    $data = $this->processValue($str, $op, $value);
+                                    //$this->log($op ." ". $name." ".$data);
+                                    $batch[$name] = $data;
+                                }
+                            }
+                            
                         }
+                    }
+                    else{ // другие обьекты
+                        // перебираем все значения обьекта
+                        foreach ($object as $key => $val) {
+                            if (is_string($val) && $this->str_contains($val, $op)){
+                                $found = 1;
+                                $name = "p".$pi."b".$object["id"].".".$key;
+                                if ($panels[$i] == $panel_id && $name == $name_value) continue;
+                                $data = $this->processValue($val, $op, $value);
+                                $batch[$name] = $data;
+                            }
+                        }    
                     }
                 }
             }
