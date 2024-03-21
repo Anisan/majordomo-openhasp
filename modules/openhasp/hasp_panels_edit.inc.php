@@ -7,6 +7,16 @@ if ($this->owner->name=='panel') {
 }
 $table_name='hasp_panels';
 $rec=SQLSelectOne("SELECT * FROM $table_name WHERE ID='$id'");
+
+if (gr('load_demo')) {
+    $file_path = DIR_MODULES . 'openhasp/sample_config.json';
+    $file = file_get_contents($file_path);
+    $rec['PANEL_CONFIG'] = $file;
+    
+    SQLUpdate($table_name, $rec);
+    $this->redirect("?id=" . $rec['ID'] . "&view_mode=" . $this->view_mode . "&tab=" . $this->tab);
+}
+
 if ($this->mode=='update') {
     $ok=1;
 

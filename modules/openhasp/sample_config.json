@@ -1,0 +1,78 @@
+{
+"page_linkedProperty":"%panel1.Value%",
+"LWT_linkedProperty":"%panel1.lwt%",
+"ip_linkedProperty":"%panel1.ip%",
+"idle_linkedProperty":"%panel1.idle%",
+"brightness_linkedProperty":"%panel1.br%",
+"output40_linkedProperty":"%Relay01.status%" ,
+"output1_linkedProperty":"%Relay02.status%",
+"output2_linkedProperty":"%Relay03.status%",
+
+"pages":[
+{
+"comment":"For all pages",
+"objects":[
+{"id":1,"obj":"btn","action":{"down": "page prev"},"x":0,"y":450,"w":159,"h":30,"bg_color":"#2C3E50","text":"\uE141","text_color":"#FFFFFF","radius":0,"border_side":0,"text_font":24,"hidden":"%arm.arm%"},
+{"id":2,"obj":"btn","action":{"down": "page back"},"x":160,"y":450,"w":159,"h":30,"bg_color":"#2C3E50","text":"\uE2DC","text_color":"#FFFFFF","radius":0,"border_side":0,"text_font":24,"hidden":"%arm.arm%"},
+{"id":3,"obj":"btn","action":{"down": "page next"},"x":320,"y":450,"w":159,"h":30,"bg_color":"#2C3E50","text":"\uE142","text_color":"#FFFFFF","radius":0,"border_side":0,"text_font":24,"hidden":"%arm.arm%"}
+]
+},
+{
+"prev":3,
+"objects":[
+{"id":20,"obj":"label","x":3,"y":5,"h":30,"w":130,"text":"Нагрузка","align":1,"text_color":"Silver","text_font":20,"click":0},
+{"id":21,"obj":"arc","x":10,"y":30,"w":140,"h":100,"max":10000,"border_side":0,"type":0,"rotation":0,"start_angle":180,"end_angle":0,"start_angle10":180,"value_font":15,"value_ofs_x":-19,"value_ofs_y":-4,"bg_opa":0,"value_str":"%Ptotal.value%","val":"%Ptotal.value%"},
+{"id":3,"obj":"label","x":250,"y":40,"h":100,"w":230,"text":"%ThisComputer.timeNow%","align":0,"text_color":"White","text_font":100},
+{"id":5,"obj":"label","x":250,"y":145,"h":35,"w":210,"text":"%ThisComputer.shortDate%","align":1,"text_color":"White","text_font":22},
+
+{"id":40,"obj":"label","x":240,"y":200,"h":50,"w":60,"text":"\uE493","align":2,"text_color":"%System.stateColor%","text_font":45},
+{"id":41,"obj":"label","x":300,"y":200,"h":50,"w":60,"text":"\uE5A9","align":2,"text_color":"%Communication.stateColor%","text_font":45},
+{"id":42,"obj":"label","x":360,"y":200,"h":50,"w":60,"text":"\uE594","align":2,"text_color":"%Security.stateColor%","text_font":45},
+
+{"id":4,"obj":"label","x":10,"y":150,"h":45,"w":50,"text":"\uE599","align":0,"text_color":"White","text_font":45},
+{"id":1,"obj":"label","x":70,"y":155,"h":40,"w":120,"text":"%Outside.temperature%°C","align":0,"text_color":"Silver","text_font":40},
+
+{"id":31,"obj":"label","x":10,"y":195,"h":45,"w":45,"text":"\uE58E","align":0,"text_color":"Gray","text_font":40},
+{"id":32,"obj":"label","x":60,"y":200,"h":35,"w":120,"text":"%weather_my.Humidity%%","align":0,"text_color":"Silver","text_font":20},
+
+{"id":34,"obj":"label","x":10,"y":240,"h":45,"w":45,"text":"\uE59D","align":0,"text_color":"Gray","text_font":40},
+{"id":35,"obj":"label","x":60,"y":245,"h":35,"w":120,"text":"%weather_my.windSpeed%м/с, %weather_my.windDir%","align":0,"text_color":"Silver","text_font":20},
+
+{"id":36,"obj":"label","x":10,"y":285,"h":45,"w":45,"text":"\uE6C0","align":0,"text_color":"Gray","text_font":40},
+{"id":37,"obj":"label","x":60,"y":290,"h":35,"w":130,"text":"%weather_my.pressure%мм (%ws.pressureTrend%)","align":0,"text_color":"Silver","text_font":20},
+{"id":38,"obj":"label","x":10,"y":340,"h":30,"w":460,"text":"%ThisComputer.lastSayMessage%","align":0,"text_color":"Silver","text_font":20, "mode":"scroll"},
+
+{"id":10,"obj":"btn","x":180,"y":380,"w":120,"h":40,"radius":5,"text":"Button","%toggle":"true","val":"%S1.status%","up_linkedMethod":"S1.switch"}
+]
+},
+{
+"objects":[
+{"id":60,"obj":"img","src":"L:/fon.png","x":0,"y":0,"auto_size":1},
+{"id":50,"obj":"label","x":10,"y":5,"h":40,"w":450,"text":"Свет","align":1,"text_font":40},
+{"id":10,"obj":"btn","x":10,"y":165,"w":140,"h":100,"toggle":true,"text":"\uE335 реле 1","text_font":32,"mode":"break","align":1,"radius":5,"groupid":1},
+{"id":20,"obj":"btn","x":170,"y":165,"w":140,"h":100,"toggle":true,"text":"\uE335 реле 2","text_font":32,"mode":"break","align":1,"radius":5,"groupid":2},
+{"id":30,"obj":"btn","x":330,"y":165,"w":140,"h":100,"toggle":true,"text":"\uE335 реле 3","text_font":32,"mode":"break","align":1,"radius":5,"groupid":3},
+{"id":40,"obj":"btn","x":10,"y":350,"w":460,"h":40,"action": {"hold": "restart"},"text":"\uE456 РЕСТАРТ","text_font":32,"align":1,"radius":5}
+]
+},
+{
+"next":1,
+"comments":"test",
+"objects":[
+{"id":1,"obj":"label","x":70,"y":10,"w":120,"h":40,"border_width":0,"text":"Dimmer"},
+{"id":2,"obj":"switch","x":20,"y":20,"w":40,"h":20,"bg_color10":"#00aaff","bg_color20":"#ffffff","val":"%Dimmer01.status%"},
+{"id":4,"obj":"slider","x":30,"y":60,"w":320,"h":20,"bg_color20":"#ffffff","min":0,"max":100,"val":"%Dimmer01.level%"},
+{"id":3,"obj":"checkbox","x":20,"y":110,"border_width":2,"radius":5,"text":"RGB light","val":"%Rgb01.status%"},
+{"id":5,"obj":"cpicker","x":20,"y":180,"w":230,"h":230,"border_width":0,"radius":0,"pad_top":5,"pad_right":5,"pad_left":5,"pad_bottom":5,"color":"%Rgb01.color%"},
+{"id":6,"obj":"btnmatrix","x":263,"y":150,"w":200,"h":240,"options":["1","2","3","\n","4","5","6","\n","7","8","9","\n","*","0","."]}
+]
+},
+{
+"objects":[
+{"id":1,"obj":"obj","x":65,"y":35,"w":360,"h":50,"click":0},
+{"id":19,"obj":"label","x":5,"y":5,"h":45,"w":250,"text":"\uE30B %arm.input_mask%","align":0,"text_color":"Orange","text_font":30,"parentid":1},
+{"id":20,"obj":"btnmatrix","x":60,"y":120,"w":360,"h":350,"options":["7","8","9","\n","4","5","6","\n","1","2","3","\n","\uE4AE","0","\uE60C"],"toggle":0,"one_check":1,"up_linkedMethod":"arm.Process"}
+]
+}
+]
+}
