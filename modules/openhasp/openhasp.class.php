@@ -389,7 +389,6 @@ class openhasp extends module {
             $this->sendCommand($panel['MQTT_PATH'],$jsonl);
             // Перебираем обьекты на панели
             foreach ($page['objects'] as $object) {
-                $this->log(json_encode($object));
                 if ($object["obj"] != "template"){
                     // перебираем все значения обьекта
                     foreach ($object as $key => $val) {
@@ -428,7 +427,7 @@ class openhasp extends module {
     }
     
     function addTemplate($panel,$parent){
-        $this->log(json_encode($parent));
+        //$this->log(json_encode($parent));
         $name = $parent["template"];
         $config = json_decode($panel['PANEL_CONFIG'], true);
         if (!isset($config['templates'])) return;
@@ -442,6 +441,7 @@ class openhasp extends module {
                 $tag["object"] = $parent["linkedObject"];
                 $tag["template"] = $name;
                 $tag["id"] = $object["id"];
+                $tag["parent"] = $parent["id"];
                 $object['tag'] = $tag;
             }
             $object["id"] = $parent["id"] + $object["id"];
@@ -484,6 +484,7 @@ class openhasp extends module {
         if (!isset($config['templates'])) return;
         if (!isset($config['templates'][$name])) return;
         $template = $config['templates'][$name];
+        $data = array();
         foreach ($template as $object) {
             if (!isset($object['tag']))
             {
@@ -511,10 +512,11 @@ class openhasp extends module {
                 }
             }
             $this->cleanObject($object);
-            // send object
-            $jsonl = "jsonl ".json_encode($object);
-            $this->sendCommand($panel['MQTT_PATH'],$jsonl);
+            $data[] = json_encode($object);
         }
+        // send objects
+        $jsonl = "jsonl ".implode("\n", $data);
+        $this->sendCommand($panel['MQTT_PATH'],$jsonl);
     }
     
     function closeTemplate($panel, $name){
@@ -601,16 +603,23 @@ class openhasp extends module {
             $object = null;
             if (isset($event["tag"]))
             {
-                foreach ($config['templates'][$event['tag']['template']] as $ob) {
+                foreach ($config['templates'][$event['tag']['template']] as $index => $ob) {
                     if ($ob['id'] == $event['tag']['id']){
                         $object = $ob;
+                        if ($index==0)
+                            foreach ($page["objects"] as $pob){
+                                if ($pob["id"] == $event['tag']['parent']){
+                                    $this->mergeObjects($object, $pob);
+                                    break;
+                                }
+                            }
+                        
                         foreach ($object as $key => $val) {
                             $object[$key] = str_replace('%.', '%'.$event["tag"]["object"].'.', $val);
                             if ($val[0] == '.')
                                $object[$key] = $event["tag"]["object"].$val;
                         }
-                        if (isset($event['tag']['object']))
-                            $object["linkedObject"] = $event['tag']['object'];
+                        break;
                     }
                 }
             }
@@ -619,11 +628,12 @@ class openhasp extends module {
                 foreach ($page['objects'] as $ob) {
                     if ($ob["id"] == $object_id){
                         $object = $ob;
+                        break;
                     }
                 }
             }   
             
-            $this->log(json_encode($object));
+            //$this->log(json_encode($object));
                 
             if ($object){
                     
@@ -791,7 +801,6 @@ class openhasp extends module {
                         $this->mergeObjects($template[0],$object);
                         foreach ($template as $index => $child)
                         {
-                            //$this->log(json_encode($child));
                             $id = $child["id"] + $object["id"];
                             foreach ($child as $key => $val) {
                                 $str = str_replace('%.', '%'.$object["linkedObject"].'.', $val);
@@ -799,7 +808,6 @@ class openhasp extends module {
                                     $found = 1;
                                     $name = "p".$pi."b".$id.".".$key;
                                     $data = $this->processValue($str, $op, $value);
-                                    //$this->log($op ." ". $name." ".$data);
                                     $batch[$name] = $data;
                                 }
                             }
@@ -839,7 +847,7 @@ class openhasp extends module {
             try {
                 // Execute the code and get its result
                 $data = eval('return ' . $code . ';');
-                $this->log("Process template: ".$code." Result:".$data);
+                $this->log("Process template: ". $template. " => ".$code." Result:".$data);
             } catch (DivisionByZeroError $e) {
                 $this->log("Error: Division by zero is not allowed (".$template.")");
             } catch (ParseError $e) {
