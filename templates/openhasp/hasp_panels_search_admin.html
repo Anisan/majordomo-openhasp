@@ -39,7 +39,7 @@
  <td width="1%" nowrap>
   <div>
    <a href="?view_mode=reloadpage_hasp_panels&id=[#ID#]" class="btn btn-default" title="Reload pages"><i class="glyphicon glyphicon-refresh"></i></a>
-   <button onclick="showScreenshot('[#IP#]');" data-toggle="modal" data-target="#screenshot" class="btn btn-default" title="Screenshot"><i class="glyphicon glyphicon-camera"></i></button>
+   <button onclick="showScreenshot('[#IP#]',[#ID#]);" data-toggle="modal" data-target="#screenshot" class="btn btn-default" title="Screenshot"><i class="glyphicon glyphicon-camera"></i></button>
    <a href="http://[#IP#]"  target="_blank" class="btn btn-default" title="Device UI"><i class="glyphicon glyphicon-link"></i></a>
   [#if "<#ACTION#>"=="admin"#]
    <a href="?view_mode=edit_hasp_panels&id=[#ID#]" class="btn btn-default" title="Edit"><i class="glyphicon glyphicon-pencil"></i></a>
@@ -77,23 +77,55 @@
 <!-- / results -->
 </td></tr></table>
 <script type="text/javascript">
-	function showScreenshot(ip){
+	var current_ip = "";
+	var current_id = "";
+	function showScreenshot(ip, id){
+		current_ip = ip;
+		current_id = id;
 		document.getElementById('image_screenshot').src="http://"+ip+"/screenshot?q="+Date.now();
+	}
+	function goPage(page){
+		fetch("/api.php/module/openhasp/page/"+current_id+"/"+page)
+			.then((response) => response.json())
+			.then((json) => {
+				console.log(json);
+				document.getElementById('image_screenshot').src="";
+				showScreenshot(current_ip, current_id);
+			});
+		
+	}
+	function refresh(){
+		document.getElementById('image_screenshot').src="";
+		showScreenshot(current_ip, current_id);
 	}
 </script>
 
 <div class="modal fade" id="screenshot" tabindex="-1" role="dialog" aria-labelledby="screenshot" aria-hidden="true">
 <!-- <div id="about" class="modal hide"> -->
-	<div class="modal-dialog modal-lg" style="max-width:540px;">
+	<div class="modal-dialog modal-lg" style="max-width:580px;">
 		<div class="modal-content">
 			<div class="modal-header">
 				<button class="close" data-dismiss="modal"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>
 				<h4 class="modal-title">Screenshot</h4>
 			</div>
-			<div class="modal-body">
+			<div class="modal-body" align="center">
 				<img id="image_screenshot" src="">
 			</div>
-			
+			<div class="modal-body">
+			<button onclick="refresh();" class="btn btn-default" title="Refresh"><i class="glyphicon glyphicon-refresh"></i></button>
+			<button onclick="goPage(1);" class="btn btn-default" title="Page 1">1</button>
+			<button onclick="goPage(2);" class="btn btn-default" title="Page 2">2</button>
+			<button onclick="goPage(3);" class="btn btn-default" title="Page 3">3</button>
+			<button onclick="goPage(4);" class="btn btn-default" title="Page 4">4</button>
+			<button onclick="goPage(5);" class="btn btn-default" title="Page 5">5</button>
+			<button onclick="goPage(6);" class="btn btn-default" title="Page 6">6</button>
+			<button onclick="goPage(7);" class="btn btn-default" title="Page 7">7</button>
+			<button onclick="goPage(8);" class="btn btn-default" title="Page 8">8</button>
+			<button onclick="goPage(9);" class="btn btn-default" title="Page 9">9</button>
+			<button onclick="goPage(10);" class="btn btn-default" title="Page 10">10</button>
+			<button onclick="goPage(11);" class="btn btn-default" title="Page 11">11</button>
+			<button onclick="goPage(12);" class="btn btn-default" title="Page 12">12</button>
+			</div>
 			<div class="modal-footer">
 				<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
 			</div>
