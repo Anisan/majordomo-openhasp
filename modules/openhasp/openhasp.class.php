@@ -471,7 +471,7 @@ class openhasp extends module {
     }
     
     function mergeObjects(&$child, $parent){
-        $ignore = array("id","obj","template","linkedObject");
+        $ignore = array("id","obj","template");
             
         foreach ($parent as $key => $val) {
             if (!in_array($key, $ignore))
