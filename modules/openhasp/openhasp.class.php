@@ -484,7 +484,6 @@ class openhasp extends module {
         if (!isset($config['templates'])) return;
         if (!isset($config['templates'][$name])) return;
         $template = $config['templates'][$name];
-        $data = array();
         foreach ($template as $object) {
             if (!isset($object['tag']))
             {
@@ -512,11 +511,10 @@ class openhasp extends module {
                 }
             }
             $this->cleanObject($object);
-            $data[] = json_encode($object);
+            // send objects
+            $jsonl = "jsonl ".json_encode($object);
+            $this->sendCommand($panel['MQTT_PATH'],$jsonl);
         }
-        // send objects
-        $jsonl = "jsonl ".implode("\n", $data);
-        $this->sendCommand($panel['MQTT_PATH'],$jsonl);
     }
     
     function closeTemplate($panel, $name){
