@@ -79,6 +79,21 @@ $previousMillis = 0;
 $oldMinute = '';
 
 while ($mqtt_client->proc()) {
+    
+    if ($openhasp_module->config['MQTT_WRITE_METHOD'] == 2) {
+        $queue = checkOperationsQueue('openhasp_queue');
+        foreach ($queue as $mqtt_data) {
+            $topic = $mqtt_data['DATANAME'];
+            $value = json_decode($mqtt_data['DATAVALUE'], true);
+            $qos = 0;
+            $retain = 0;
+            if ($topic != '') {
+                echo "Publishing to $topic : $value\n";
+                $mqtt_client->publish($topic, $value, $qos, $retain);
+            }
+        }
+    }
+
 
     $currentMillis = round(microtime(true) * 10000);
 

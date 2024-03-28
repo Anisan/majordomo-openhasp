@@ -126,7 +126,7 @@ class openhasp extends module {
         $out['MQTT_USERNAME'] = $this->config['MQTT_USERNAME'];
         $out['MQTT_PASSWORD'] = $this->config['MQTT_PASSWORD'];
         $out['MQTT_AUTH'] = $this->config['MQTT_AUTH'];
-        $out['DEBUG_MODE'] = $this->config['DEBUG_MODE'];
+        $out['MQTT_WRITE_METHOD'] = isset($this->config['MQTT_WRITE_METHOD']) ? (int)$this->config['MQTT_WRITE_METHOD'] : 0;
         $out['DEBUG'] = $this->config['DEBUG'];
         
         if ($this->view_mode == 'update_settings') {
@@ -136,6 +136,7 @@ class openhasp extends module {
             $this->config['MQTT_AUTH'] = gr('mqtt_auth', 'int');
             $this->config['MQTT_PORT'] = gr('mqtt_port', 'int');
             $this->config['MQTT_QUERY'] = gr('mqtt_query', 'trim');
+            $this->config['MQTT_WRITE_METHOD'] = gr('mqtt_write_method', 'int');
             $this->config['DEBUG'] = gr('debug', 'int');
             $this->saveConfig();
             setGlobal('cycle_openhaspControl', 'restart');
@@ -242,6 +243,12 @@ class openhasp extends module {
     function sendMQTTCommand($topic, $command)
     {
         $this->getConfig();
+        if ($this->config['MQTT_WRITE_METHOD'] == 2) {
+            $this->log("Queue command to $topic: " . $command);
+            addToOperationsQueue('openhasp_queue', $topic, json_encode($command), true);
+            return 1;
+        }
+
         $this->log("Sending command to $topic: " . $command);
         include_once(ROOT . "3rdparty/phpmqtt/phpMQTT.php");
         $client_name = "NSPanel module";
@@ -631,7 +638,7 @@ class openhasp extends module {
                 }
             }   
             
-            //$this->log(json_encode($object));
+            $this->log(json_encode($object));
                 
             if ($object){
                     
