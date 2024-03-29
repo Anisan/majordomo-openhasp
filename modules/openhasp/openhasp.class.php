@@ -206,6 +206,7 @@ class openhasp extends module {
 
     function setLinked($config){
         $this->findLinked($config,true);
+        clearCacheData("hasp");
     }
     
     function findLinked($config, $add){
@@ -761,6 +762,33 @@ class openhasp extends module {
     function updateValues($panel_id, $name_value, $op, $value)
     {
         $found = 0;
+        $cache = checkFromCache("hasp:".$op);
+        if ($cache)
+        {
+            $this->log($cache);
+            
+            $cache = json_decode($cache,true);
+            
+            foreach ($cache as $key=> $device){
+                $batch = $device["batch"];
+                foreach ($batch as $key=> $val){
+                    $data = $this->processValue($val, $op, $value);
+                    $batch[$key] = $data;
+                }
+                if ($panels[$i] == $panel_id)
+                {
+                    unset($batch[$name_value]);
+                }
+                if (!empty($batch))
+                {
+                    $found = true;
+                    $this->sendBatch($device['MQTT'], $batch);
+                }
+            }
+            return $found;
+        }
+        
+        $cache = array();
         $panels = SQLSelect("SELECT * FROM hasp_panels");
         $total = count($panels);
         for ($i = 0; $i < $total; $i++) {
@@ -812,7 +840,7 @@ class openhasp extends module {
                                 if (is_string($str) && $this->str_contains($str, $op)){
                                     $found = 1;
                                     $name = "p".$pi."b".$id.".".$key;
-                                    $data = $this->processValue($str, $op, $value);
+                                    $data = $str;
                                     $batch[$name] = $data;
                                 }
                             }
@@ -825,17 +853,32 @@ class openhasp extends module {
                             if (is_string($val) && $this->str_contains($val, $op)){
                                 $found = 1;
                                 $name = "p".$pi."b".$object["id"].".".$key;
-                                if ($panels[$i] == $panel_id && $name == $name_value) continue;
-                                $data = $this->processValue($val, $op, $value);
+                                $data = $val;
                                 $batch[$name] = $data;
                             }
                         }    
                     }
                 }
             }
+            $cache[$panels[$i]['ID']] = array("MQTT"=>$panels[$i]['MQTT_PATH'],"batch"=>$batch);
+            saveToCache("hasp:".$op, json_encode($cache));
             if (!empty($batch))
+            {
+                foreach ($batch as $key=> $val){
+                    $data = $this->processValue($val, $op, $value);
+                    $batch[$key] = $data;
+                }
+                if ($panels[$i] == $panel_id)
+                {
+                    unset($batch[$name_value]);
+                }
+                
                 $this->sendBatch($panels[$i]['MQTT_PATH'], $batch);
+            }
+            
         }
+        
+         
         
         return $found;
     }
