@@ -765,19 +765,18 @@ class openhasp extends module {
         $cache = checkFromCache("hasp:".$op);
         if ($cache)
         {
-            $this->log($cache);
-            
             $cache = json_decode($cache,true);
             
-            foreach ($cache as $key=> $device){
+            foreach ($cache as $key => $device){
                 $batch = $device["batch"];
-                foreach ($batch as $key=> $val){
+                foreach ($batch as $obj => $val){
                     $data = $this->processValue($val, $op, $value);
-                    $batch[$key] = $data;
+                    $batch[$obj] = $data;
                 }
-                if ($panels[$i] == $panel_id)
+                if ($key == $panel_id)
                 {
-                    unset($batch[$name_value]);
+                    if ($name_value != "")
+                        unset($batch[$name_value]);
                 }
                 if (!empty($batch))
                 {
@@ -785,7 +784,8 @@ class openhasp extends module {
                     $this->sendBatch($device['MQTT'], $batch);
                 }
             }
-            return $found;
+            if ($found)
+                return $found;
         }
         
         $cache = array();
@@ -861,7 +861,6 @@ class openhasp extends module {
                 }
             }
             $cache[$panels[$i]['ID']] = array("MQTT"=>$panels[$i]['MQTT_PATH'],"batch"=>$batch);
-            saveToCache("hasp:".$op, json_encode($cache));
             if (!empty($batch))
             {
                 foreach ($batch as $key=> $val){
@@ -877,8 +876,8 @@ class openhasp extends module {
             }
             
         }
-        
-         
+        if ($found)
+            saveToCache("hasp:".$op, json_encode($cache));
         
         return $found;
     }
