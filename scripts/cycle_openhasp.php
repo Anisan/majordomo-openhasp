@@ -85,7 +85,7 @@ while ($mqtt_client->proc()) {
         foreach ($queue as $mqtt_data) {
             $topic = $mqtt_data['DATANAME'];
             $value = json_decode($mqtt_data['DATAVALUE'], true);
-            $qos = 0;
+            $qos = $openhasp_module->config['MQTT_QOS'] ?? 0;
             $retain = 0;
             if ($topic != '') {
                 echo "Publishing to $topic : $value\n";

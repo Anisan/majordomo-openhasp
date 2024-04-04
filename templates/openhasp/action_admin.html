@@ -61,6 +61,14 @@
 </div>
 <div class="form-group" >
  <label class="control-label">
+  MQTT QOS: <span style="color:red">*</span>
+ </label>
+   <input type="radio" name="mqtt_qos" value="0"[#if MQTT_QOS="0" || MQTT_QOS=""#] checked[#endif#]> 0
+   <input type="radio" name="mqtt_qos" value="1"[#if MQTT_QOS="1"#] checked[#endif#]> 1
+   <input type="radio" name="mqtt_qos" value="2"[#if MQTT_QOS="2"#] checked[#endif#]> 2
+</div>
+<div class="form-group" >
+ <label class="control-label">
   Write method (<#LANG_DEFAULT#>): <span style="color:red">*</span>
  </label>
    <input type="radio" name="mqtt_write_method" value="0"[#if MQTT_WRITE_METHOD="0" || MQTT_WRITE_METHOD=""#] checked[#endif#]> New connection

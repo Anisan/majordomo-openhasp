@@ -127,6 +127,7 @@ class openhasp extends module {
         $out['MQTT_PASSWORD'] = $this->config['MQTT_PASSWORD'];
         $out['MQTT_AUTH'] = $this->config['MQTT_AUTH'];
         $out['MQTT_WRITE_METHOD'] = isset($this->config['MQTT_WRITE_METHOD']) ? (int)$this->config['MQTT_WRITE_METHOD'] : 0;
+        $out['MQTT_QOS'] = isset($this->config['MQTT_QOS']) ? (int)$this->config['MQTT_QOS'] : 0;
         $out['DEBUG'] = $this->config['DEBUG'];
         
         if ($this->view_mode == 'update_settings') {
@@ -137,6 +138,7 @@ class openhasp extends module {
             $this->config['MQTT_PORT'] = gr('mqtt_port', 'int');
             $this->config['MQTT_QUERY'] = gr('mqtt_query', 'trim');
             $this->config['MQTT_WRITE_METHOD'] = gr('mqtt_write_method', 'int');
+            $this->config['MQTT_QOS'] = gr('mqtt_qos', 'int');
             $this->config['DEBUG'] = gr('debug', 'int');
             $this->saveConfig();
             setGlobal('cycle_openhaspControl', 'restart');
@@ -270,7 +272,8 @@ class openhasp extends module {
         if (!$mqtt_client->connect(true, NULL, $username, $password)) {
             return 0;
         }
-        $mqtt_client->publish($topic, $command, 0, 0);
+        $qos = $this->config['MQTT_QOS'] ?? 0;
+        $mqtt_client->publish($topic, $command, $qos, 0);
         $mqtt_client->close();
 
     }
