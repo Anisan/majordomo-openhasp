@@ -339,14 +339,15 @@ class openhasp extends module {
             else
                 return "Not found";
         }
-        if ($params['request'][0]=='reload') {
+        if ($params['request'][0]=='reload' || $params['request'][0]=='update') {
             $id = $params['request'][1];
             $panel=SQLSelectOne("SELECT * FROM hasp_panels WHERE ID='$id'");
             if ($panel){
+                $clean = $params['request'][0]!='update';
                 if (count($params['request'])==3)
-                    $this->reloadPage($panel,$params['request'][2]);
+                    $this->reloadPage($panel,$params['request'][2], $clean);
                 else
-                    $this->reloadPages($panel);
+                    $this->reloadPages($panel, $clean);
                 return "ok";
                 }
             return "Not found";
@@ -375,6 +376,42 @@ class openhasp extends module {
             }
             return "Not found";
         }
+        if ($params['request'][0]=='add_objects' || $params['request'][0]=='del_objects') {
+            $objects = file_get_contents('php://input');
+            if ($objects){
+                $objects = json_decode($objects,true);
+                if (json_last_error() != JSON_ERROR_NONE)
+                    return "JSON error: ".json_last_error_msg() ;
+            }
+            else
+                return "empty data";
+            if (isset($objects['id'])){
+                $objects = array($objects);
+            }
+            foreach ($objects as $object){
+                $sql = "SELECT * FROM `$table_name`";
+                if (isset($object["device"]))
+                    $sql .= " WHERE ID=".$object['device'];
+                $panels=SQLSelect($sql);
+                foreach ($panels as $panel) {
+                    if (!isset($object["page"]))
+                        $object["page"] = (int)$panel["CURRENT_PAGE"];
+                    $name = "d".$panel['ID']."p".$object['page']."b".$object['id'];
+                    if ($params['request'][0]=='add_objects'){
+                        $command = "json ".json_encode($object);
+                        $this->sendCommand($panel['MQTT_PATH'], $command);
+                        saveToCache("hasp:".$name, json_encode($object));
+                    }
+                    if ($params['request'][0]=='del_objects'){
+                        $command = "p".$object['page']."b".$object['id'].".delete";
+                        $this->sendCommand($panel['MQTT_PATH'], $command);
+                        deleteFromCache("hasp:".$name);
+                    }
+                }
+            }
+            
+            return "ok";
+        }
     }
     function cleanObject(&$object){
         $events = array("up","down","release","long","hold","changed");
@@ -387,8 +424,9 @@ class openhasp extends module {
         }
         unset($object["linkedObject"]);
     }
-    function reloadPage($panel,$index){
-        $this->sendCommand($panel['MQTT_PATH'],"clearpage ".$index);
+    function reloadPage($panel,$index, $clean = true){
+        if ($clean)
+            $this->sendCommand($panel['MQTT_PATH'],"clearpage ".$index);
         $config = json_decode($panel['PANEL_CONFIG'], true);
         $page = $config["pages"][$index];
         $page_atr = array("page"=>$index);
@@ -419,12 +457,12 @@ class openhasp extends module {
                 
             }
     }
-    function reloadPages($panel){
+    function reloadPages($panel, $clean = true){
         $config = json_decode($panel['PANEL_CONFIG'], true);
         // перебираем все страницы
         $pages = count($config["pages"]);
         for ($pi = 0; $pi < $pages; $pi++) {
-            $this->reloadPage($panel,$pi);
+            $this->reloadPage($panel,$pi, $clean);
         }
     }
     
@@ -650,8 +688,17 @@ class openhasp extends module {
                     }
                 }
             }   
+            if ($object == null){
+                // find in cache
+                $name = "d".$panel['ID']."p".$page_index."b".$object_id;
+                $cache = checkFromCache("hasp:".$name);
+                if ($cache)
+                {
+                    $object = json_decode($cache,true);
+                }
+            }
             
-            $this->log(json_encode($object));
+            $this->log(json_encode($object)); // XXX
                 
             if ($object){
                     
