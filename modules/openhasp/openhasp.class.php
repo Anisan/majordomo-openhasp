@@ -470,7 +470,7 @@ class openhasp extends module {
                 }
                 else
                 {
-                    $op = str_replace('%.', '%'.$parent["linkedObject"].'.', $val);
+                    $op = $this->replaceObject($parent["linkedObject"], $val);
                     $object[$key] = $this->processValue($op, "", "");
                 }
             }
@@ -479,6 +479,15 @@ class openhasp extends module {
             $jsonl = "jsonl ".json_encode($object);
             $this->sendCommand($panel['MQTT_PATH'],$jsonl);
         }
+    }
+    
+    function replaceObject($object,$property) {
+        $pattern = '/%\.([^\%]*)%/';
+        $callback = function ($matches) use ($object) {
+            return '%'.$object.'.' . $matches[1] . '%';
+        };
+        $output = preg_replace_callback($pattern, $callback, $property);
+        return $output;
     }
     
     function mergeObjects(&$child, $parent){
@@ -517,7 +526,7 @@ class openhasp extends module {
                 }
                 else
                 {
-                    $op = str_replace('%.', '%'.$ob.'.', $val);
+                    $op = $this->replaceObject($ob, $val);
                     $object[$key] = $this->processValue($op, "", "");
                 }
             }
@@ -624,7 +633,7 @@ class openhasp extends module {
                             }
                         
                         foreach ($object as $key => $val) {
-                            $object[$key] = str_replace('%.', '%'.$event["tag"]["object"].'.', $val);
+                            $object[$key] = $this->replaceObject($event["tag"]["object"], $val);
                             if ($val[0] == '.')
                                $object[$key] = $event["tag"]["object"].$val;
                         }
@@ -839,7 +848,7 @@ class openhasp extends module {
                         {
                             $id = $child["id"] + $object["id"];
                             foreach ($child as $key => $val) {
-                                $str = str_replace('%.', '%'.$object["linkedObject"].'.', $val);
+                                $str = $this->replaceObject($object["linkedObject"], $val);
                                 if (is_string($str) && $this->str_contains($str, $op)){
                                     $found = 1;
                                     $name = "p".$pi."b".$id.".".$key;
